@@ -28,8 +28,7 @@ core_shell_cylinder_project/
 │   │   ├── utils.c                   # Utility functions
 │   │   └── *.h                       # Header files
 │   ├── utils.py                      # Advanced analysis utilities and bootstrapping
-│   ├── main.py                       # Basic example usage
-│   └── main_integrated.py            # Integrated analysis example
+│   └── main.py                       # Basic example usage
 ├── setup.py                          # Package installation configuration
 ├── requirements.txt                  # Python dependencies
 └── README.md                         # This file
@@ -117,9 +116,6 @@ print(f"Generated {len(fitted_params)} parameter sets")
 ### Complete Analysis Example
 
 ```bash
-# Run the integrated analysis example
-python src/main_integrated.py
-
 # Run basic form factor example
 python src/main.py
 
