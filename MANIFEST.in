@@ -1,0 +1,19 @@
+# Include C source files and headers
+include src/core_shell_cylinder/*.c
+include src/core_shell_cylinder/*.h
+
+# Include documentation
+include README.md
+include LICENSE
+
+# Include configuration files
+include requirements.txt
+include setup.py
+
+# Exclude compiled files and cache
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.so
+global-exclude __pycache__
+global-exclude .DS_Store
+global-exclude *.png
