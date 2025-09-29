@@ -6,6 +6,11 @@
 #include "utils.h"
 
 #define M_4PI_3 (4.0 * M_PI / 3.0)
+
+#ifndef M_PI_4
+#define M_PI_4 (M_PI / 4.0)
+#endif
+
 #define GAUSS_N 76
 #define GAUSS_Z Gauss76Z
 #define GAUSS_W Gauss76Wt
@@ -58,6 +63,14 @@ static double radius_effective(int mode, double radius, double thickness, double
 }
 
 void Fq(double q, double *F1, double *F2, double core_sld, double shell_sld, double solvent_sld, double radius, double thickness, double length) {
+    // Add this safety check at the beginning of Fq function
+    if (GAUSS_N > 76) {
+        fprintf(stderr, "Error: GAUSS_N (%d) exceeds expected array size\n", GAUSS_N);
+        *F1 = 0.0;
+        *F2 = 0.0;
+        return;
+    }
+
     const double core_r = radius;
     const double core_h = 0.5 * length;
     const double core_vd = form_volume(radius, 0, length) * (core_sld - shell_sld);
@@ -89,4 +102,12 @@ double Iqac(double qab, double qc, double core_sld, double shell_sld, double sol
     const double shell_vd = form_volume(radius, thickness, length) * (shell_sld - solvent_sld);
     const double fq = _cyl(core_vd, core_r * qab, core_h * qc) + _cyl(shell_vd, shell_r * qab, shell_h * qc);
     return 1.0e-4 * fq * fq;
+}
+
+int main() {
+    double F1, F2;
+    Fq(0.1, &F1, &F2, 6, 10, 7, 14.3, 6, 38);
+
+    printf("F1: %g, F2: %g\n", F1, F2);
+    return 0;
 }

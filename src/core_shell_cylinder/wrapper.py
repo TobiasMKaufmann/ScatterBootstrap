@@ -1,7 +1,7 @@
 from ctypes import CDLL, c_double, POINTER
 import os
+from pathlib import Path
 
-# Load the shared library
 lib_path = os.path.join(os.path.dirname(__file__), 'core_shell_cylinder.so')
 core_shell_lib = CDLL(lib_path)
 
@@ -24,7 +24,6 @@ def compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, 
     F1 = c_double()
     F2 = c_double()
 
-    # Call the Fq function from the C library
     core_shell_lib.Fq(
         c_double(q),
         POINTER(c_double)(F1),

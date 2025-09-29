@@ -1,4 +1,6 @@
-# filepath: /core_shell_cylinder_project/core_shell_cylinder_project/src/main.py
+"""
+This file was used for testing purposes.
+"""
 
 from core_shell_cylinder.wrapper import compute_form_factor
 from core_shell_cylinder.hayter_msa_wrapper import compute_structure_factor
@@ -24,23 +26,19 @@ csalt = 0.093723  # salt concentration (M)
 dialec = 78.3  # dielectric constant for water (dimensionless)
 
 def main():
-    # Compute the form factor
     F1, F2 = compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
     
-    # Compute the structure factor
     S_q = compute_structure_factor(q, radius_effective, vol_frac, zz, temp, csalt, dialec)
     
-    # Compute the total scattering intensity I(q) = F^2(q) * S(q)
-    # Using F2 which is the integrated |F(q)|^2 value
+    # Using F2 which is the integrated |F(q)|^2 value:
     I_q = F2 * S_q
     
-    # Print the results
     print(f"Form Factor F2: {F2}")
     print(f"Structure Factor S(q): {S_q}")
     print(f"Total Scattering Intensity I(q) = F²(q) × S(q): {I_q}")
 
 def plot_scattering():
-    q_values = np.logspace(-2, 0, 100)  # Generate q values from 0.01 to 1 in log scale
+    q_values = np.logspace(-2, 0, 100)
     F2_values = []
     S_values = []
     I_values = []

@@ -1,3 +1,4 @@
+import os
 from setuptools import setup, Extension, find_packages
 
 # Define the core-shell cylinder C extension module
@@ -28,7 +29,7 @@ setup(
     name='core_shell_cylinder_project',
     version='0.2.0',
     description='A Python project for computing form factors and structure factors for core-shell cylinder models with bootstrapping analysis.',
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='utf-8').read() if os.path.exists('README.md') else '',
     long_description_content_type='text/markdown',
     author='Tobias Kaufmann',
     author_email='tkaufman@student.ethz.ch',
@@ -41,7 +42,8 @@ setup(
         'scipy>=1.7.0',
         'matplotlib>=3.3.0',
         'pandas>=1.3.0',
-        'cffi>=1.14.0'
+        'cffi>=1.14.0',
+        'tables>=3.6.0'
     ],
     python_requires='>=3.8',
     classifiers=[

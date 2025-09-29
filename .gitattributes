@@ -1,0 +1,24 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source code
+*.py text
+*.c text  
+*.h text
+*.md text
+*.txt text
+*.json text
+*.toml text
+*.cfg text
+*.ini text
+
+# Binary files
+*.so binary
+*.dll binary
+*.dylib binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.dat binary
