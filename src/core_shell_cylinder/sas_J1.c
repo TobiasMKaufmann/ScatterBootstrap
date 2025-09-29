@@ -49,6 +49,9 @@ Copyright 1984, 1987, 1989, 2000 by Stephen L. Moshier
 #define M_SQRT1_2 0.70710678118654752440 // 1/sqrt(2)
 #endif
 
+
+#define FLOAT_SIZE 8 // TODO: Temporary solution (the other one gives numerical instability)
+
 #if FLOAT_SIZE>4
 //Cephes double pression function
 
@@ -159,6 +162,7 @@ double cephes_j1(double x)
     double sin_x, cos_x;
     SINCOS(abs_x, (double *)&sin_x, (double *)&cos_x);
     p = p*(sin_x - cos_x) + w*q*(sin_x + cos_x);
+
     return( sign_x * p * SQRT1_PI / sqrt(abs_x) );
 }
 
@@ -252,7 +256,7 @@ double sas_2J1x_x(double x)
     if (fabs(x) < 1e-10) {
         return 1.0; // Limit value for x approaching zero
     }
-    double J1x = sas_J1(x);
+    double J1x = cephes_j1(x);
     double result = 2.0 * J1x / x;
     return result;
 }

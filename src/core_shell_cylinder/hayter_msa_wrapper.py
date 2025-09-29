@@ -1,9 +1,9 @@
 import ctypes
 import os
 
-# Load the shared library
 lib_path = os.path.join(os.path.dirname(__file__), 'hayter_msa.so')
 lib = ctypes.CDLL(lib_path)
+
 
 # Define the function signature
 lib.Iq.argtypes = [
@@ -22,23 +22,15 @@ def compute_structure_factor(q, radius_effective, volume_fraction, charge, tempe
     Compute the Hayter-Penfold MSA structure factor.
     
     Parameters:
-    q : float
-        Scattering vector (1/Å)
-    radius_effective : float
-        Effective radius (Å)
-    volume_fraction : float
-        Volume fraction (dimensionless)
-    charge : float
-        Particle charge (elementary charges)
-    temperature : float
-        Temperature (K)
-    salt_concentration : float
-        Salt concentration (M)
-    dielectric_constant : float
-        Dielectric constant (dimensionless)
+    q (float): Scattering vector (1/Å)
+    radius_effective (float): Effective radius (Å)
+    volume_fraction (float): Volume fraction (dimensionless)
+    charge (float): Particle charge (elementary charges)
+    temperature (float): Temperature (K)
+    salt_concentration (float): Salt concentration (M)
+    dielectric_constant (float): Dielectric constant (dimensionless)
     
     Returns:
-    float
-        Structure factor S(q)
+    float: Structure factor S(q)
     """
     return lib.Iq(q, radius_effective, volume_fraction, charge, temperature, salt_concentration, dielectric_constant)

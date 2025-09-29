@@ -2,13 +2,24 @@
 include src/core_shell_cylinder/*.c
 include src/core_shell_cylinder/*.h
 
+# Include Python source files
+include src/*.py
+include src/core_shell_cylinder/*.py
+
 # Include documentation
 include README.md
 include LICENSE
+include CHANGELOG.md
 
 # Include configuration files
 include requirements.txt
 include setup.py
+include pyproject.toml
+include MANIFEST.in
+
+# Include initial parameter files
+include src/initial_params.json
+include src/initial_params_all_structure_factors.json
 
 # Exclude compiled files and cache
 global-exclude *.pyc
@@ -16,4 +27,6 @@ global-exclude *.pyo
 global-exclude *.so
 global-exclude __pycache__
 global-exclude .DS_Store
-global-exclude *.png
+global-exclude build/*
+global-exclude dist/*
+global-exclude *.egg-info/*

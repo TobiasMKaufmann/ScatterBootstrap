@@ -1,53 +1,31 @@
-# ECHEMES Bootstrapping
+# Changelog
 
-## Overview
-This project provides advanced tools for small-angle scattering (SAS) analysis, focusing on core-shell cylinder models with comprehensive uncertainty analysis through block bootstrapping.
+All notable changes to this project will be documented in this file.
 
-## Recent Updates
-- Added Hayter-Penfold MSA structure factor calculations
-- Implemented block bootstrapping for time-series analysis
-- Enhanced parameter fitting with uncertainty estimation
-- Added comprehensive visualization tools
-- Improved C extension performance
+## [0.2.0] - 2025-09-29
 
-## Quick Start
+### Added
+- Block bootstrapping functionality for time-series analysis
+- Hayter-Penfold MSA structure factor calculations
+- Advanced parameter fitting with uncertainty estimation
+- Comprehensive visualization and plotting tools
+- C extensions for high-performance form factor calculations
 
-### Installation
-```bash
-git clone https://github.com/TobiasMKaufmann/echemes-bootstrapping.git
-cd echemes-bootstrapping
-pip install -r requirements.txt
-python setup.py build_ext --inplace
-```
+### Changed
+- Reorganized project structure with proper package layout
+- Updated documentation to emphasize utils.py as main interface
+- Improved installation process for cross-platform compatibility
 
-### Basic Usage
-```python
-from core_shell_cylinder.wrapper import compute_form_factor
-from core_shell_cylinder.hayter_msa_wrapper import compute_structure_factor
+### Fixed
+- Build system compatibility issues
+- Memory management in C extensions
 
-# Form factor calculation
-F, F2 = compute_form_factor(q=0.1, core_sld=7.7, shell_sld=10.989, 
-                           solvent_sld=9.4, radius=13.84, thickness=6.60, length=35.21)
+## [0.1.0] - Initial Release
 
-# Structure factor calculation  
-S_q = compute_structure_factor(q=0.1, radius_effective=24.8, volume_fraction=0.16363,
-                              charge=28.288, temperature=300, salt_concentration=0.093723,
-                              dielectric_constant=78.3)
-```
-
-### Advanced Analysis
-```python
-from utils import bootstrapping, fit_bootstrap_samples
-
-# Load data and perform bootstrapping analysis
-bootstrap_samples = bootstrapping(x_data, y_data, n_iterations=1000, block_size=5)
-fitted_params = fit_bootstrap_samples(bootstrap_samples)
-```
-
-## Project Structure
-- `src/core_shell_cylinder/`: C extensions and Python wrappers
-- `src/utils.py`: Advanced analysis utilities and bootstrapping
-- `src/main.py`: Basic usage examples
+### Added
+- Basic form factor calculations for core-shell cylinders
+- Python wrappers for C implementations
+- Initial bootstrapping framework
 - `setup.py`: Package configuration
 - `requirements.txt`: Dependencies
 

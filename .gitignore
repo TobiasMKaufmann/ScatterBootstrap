@@ -3,8 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
+# C extensions (compiled libraries - will be rebuilt on install)
 *.so
+*.dll
+*.dylib
 
 # Distribution / packaging
 .Python
@@ -128,14 +130,29 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Project specific
+# Project specific - exclude data files but keep examples
 *.png
+!src/fitting_example.png
+!src/raw_data.png
+!src/scattering_analysis.png
 *.dat
+!src/20_06_2025_photoacids_SDS/**/*.dat
 *.csv
 *.edf
 *.sdf
 *.mol
 *.cube
-*.json
+# Keep initial params JSON files
+!src/initial_params.json
+!src/initial_params_all_structure_factors.json
 .vscode/
 .devcontainer/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Cluster/HPC specific
+src/cluster/new_bootstrap_data/
+src/cluster/old_data/

@@ -258,6 +258,102 @@ def plot_fit_data(xdata, ydata, params, title="Fit Data", xlabel="q", ylabel="In
     plt.savefig(os.path.join(folder, f"{title.replace(' ', '_').lower()}.png"), dpi=300)
     plt.close(fig)
 
+
+def bootstrapping(x_data, y_data, n_iterations=1000, block_size=5):
+    """
+    Perform block bootstrapping to generate varied datasets from time-series data while preserving temporal structure.
+    How it works:
+    - Randomly selects blocks of data points to create bootstrap samples.
+    - Each block is a contiguous segment of the time-series data.
+    - It is possible that some data points may be repeated in the bootstrap sample and some may not be included at all.
+
+    Parameters:
+    x_data (array): Independent variable data (time-series x values).
+    y_data (array): Dependent variable data (time-series y values).
+    n_iterations (int): Number of bootstrap iterations.
+    initial_params (dict): Initial parameter values for fitting.
+    fit_params (dict): Parameters to fit.
+    block_size (int): Size of blocks to sample (preserves local temporal structure).
+
+    Returns:
+    array: Array of bootstrap samples (x_bootstrap, y_bootstrap) for each iteration.
+    """
+    bootstrap_samples = []
+    n_data = len(x_data)
+    
+    for iteration in range(n_iterations):
+        # Create bootstrap sample using block sampling
+        x_bootstrap = []
+        y_bootstrap = []
+        
+        # Sample blocks until we have enough data points
+        while len(x_bootstrap) < n_data:
+            # Randomly select a starting position for the block
+            start_idx = np.random.randint(0, max(1, n_data - block_size + 1))
+            end_idx = min(start_idx + block_size, n_data)
+            
+            # Add the block to bootstrap sample
+            x_bootstrap.extend(x_data[start_idx:end_idx])
+            y_bootstrap.extend(y_data[start_idx:end_idx])
+        
+        # Trim to original length
+        x_bootstrap = np.array(x_bootstrap[:n_data])
+        y_bootstrap = np.array(y_bootstrap[:n_data])
+        
+        # Store bootstrap sample
+        bootstrap_samples.append((x_bootstrap, y_bootstrap))
+
+        # Plot the first few iterations to visualize the bootstrap process
+        if iteration < 1:  # Plot first 5 iterations
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+
+            # Top plot: Original data
+            ax1.plot(x_data, y_data, 'o-', color='blue', markersize=4, 
+                    linewidth=2, label='Original Data', alpha=0.8)
+            ax1.set_title(f"Original Time Series Data")
+            ax1.set_ylabel("Intensity I(q)")
+            ax1.legend()
+            ax1.grid(True, alpha=0.3)
+            
+            # Bottom plot: Bootstrap sample
+            ax2.scatter(x_bootstrap, y_bootstrap, color='red', s=16, label=f'Bootstrap Sample {iteration + 1}', alpha=0.8)
+            ax2.set_title(f"Bootstrap Sample {iteration + 1} (Block Size = {block_size})")
+            ax2.set_xlabel("Scattering Vector q (1/Å)")
+            ax2.set_ylabel("Intensity I(q)")
+            ax2.legend()
+            ax2.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plt.savefig(f"bootstrap_iteration_{iteration + 1}.png", dpi=300)
+            plt.close(fig)
+        
+        # Print progress every 100 iterations
+        if (iteration + 1) % 100 == 0:
+            print(f"Completed {iteration + 1}/{n_iterations} bootstrap iterations")
+
+    return np.array(bootstrap_samples)
+
+def fit_bootstrap_samples(bootstrap_samples, initial_params=initial_params, fit_params=fit_params):
+    """
+    Fit the bootstrap samples to extract fitted parameters.
+
+    Parameters:
+    bootstrap_samples (array): Array of bootstrap samples (x_bootstrap, y_bootstrap).
+    initial_params (dict): Initial parameter values for fitting.
+    fit_params (dict): Parameters to fit.
+
+    Returns:
+    list: List of fitted parameters for each bootstrap sample.
+    """
+    fitted_params = []
+
+    for x_bootstrap, y_bootstrap in tqdm(bootstrap_samples, desc="Fitting bootstrap samples", unit="sample"):
+        popt, pcov, param_order = fit_data(x_bootstrap, y_bootstrap, initial_params, fit_params)
+        fitted_params.append(dict(zip(param_order, popt)))
+
+    return fitted_params
+
+# I suggest this method:
 def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fit_params, n_iterations=1000, bounds=(-np.inf, np.inf), store=None, method="lm", structure_factor=True):
     """
     Compute residuals for each bootstrap sample.
@@ -273,7 +369,6 @@ def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fi
     store (pd.HDFStore): HDF5 store to save the bootstrap samples.
     method (str): Fitting method, e.g., 'lm' (uses scipy.optimize.curve_fit).
     structure_factor (bool): Whether to include the structure factor in the intensity calculation.
-                                If this is False, the provided dicts should be updated accordingly.
 
     Returns:
     list: List of residuals for each bootstrap sample.
@@ -309,20 +404,22 @@ def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fi
                 tqdm.write(f"Iteration {i}/{n_iterations} - Elapsed: {elapsed_time:.1f}s - "
                       f"Est. total: {estimated_total_time:.1f}s - Est. remaining: {estimated_remaining_time:.1f}s")
         
-        # Here: All residuals are resamples. In the future, it could be interesting to examine what would change if only a fraction were resampled.
         resampled = np.random.choice(residuals, size=len(residuals), replace=True)  # Randomly sample residuals with replacement for bootstrapping
         synthetic_y = y_data + resampled
 
         store.put(f'synthetic_y/s{str(i)}', pd.Series(synthetic_y))
 
-        new_fitted_params, _, param_order = fit_data(x_data, synthetic_y, all_params, fit_params, bounds=bounds, method=method, structure_factor=structure_factor)
-        
+        if structure_factor:
+            new_fitted_params, _, param_order = fit_data(x_data, synthetic_y, all_params, fit_params, bounds=bounds, method=method, structure_factor=structure_factor)
+        else:
+            new_fitted_params, _, param_order = fit_data(x_data, synthetic_y, all_params, fit_params, bounds=bounds, method=method, structure_factor=structure_factor)
+
         new_fitted_params = dict(zip(param_order, new_fitted_params))
 
         store.put(f'fitted_params/s{str(i)}', pd.Series(new_fitted_params))
 
-        # Plot the fit for the first few iterations to visualize the fitting process:
-        #plot_fit_data(x_data, synthetic_y, {key: new_fitted_params[key] if fit_params[key] else all_params[key] for key in all_params.keys()}, title=f"Bootstrap Fit Iteration {i+1}", xlabel="q", ylabel="Intensity", folder=f"bootstrap_fit_plotting") # TODO: Could be updated to include the structure_factor (bool) argument
+        # Optional: Plot the fit for the first few iterations to visualize the fitting process
+        #plot_fit_data(x_data, synthetic_y, {key: new_fitted_params[key] if fit_params[key] else all_params[key] for key in all_params.keys()}, title=f"Bootstrap Fit Iteration {i+1}", xlabel="q", ylabel="Intensity", folder=f"bootstrap_fit_plotting")
 
         fit_arr.append({key: new_fitted_params[key] if fit_params[key] else all_params[key] for key in all_params.keys()})
 
@@ -350,3 +447,112 @@ def compute_confidence_intervals(fitted_params, confidence_level=0.05):
     upper_bound = np.percentile(arr_fitted_params, (1 - confidence_level / 2) * 100, method="nearest", axis=0)
 
     return {param_order[i]: (lower_bound[i], upper_bound[i]) for i in range(len(param_order))}
+
+# Deprecated
+def bootstrapping_fit_test(x_data, y_data, n_iterations=1000, initial_params=initial_params, fit_params=fit_params, fixed_fraction=0.8):
+    """
+    Perform bootstrapping to estimate the uncertainty of the fitted parameters.
+
+    Parameters:
+    x_data (array): Independent variable data.
+    y_data (array): Dependent variable data.
+    n_iterations (int): Number of bootstrap iterations.
+    initial_params (dict): Initial parameter values for fitting.
+    fit_params (dict): Parameters to fit.
+    fixed_fraction (float): Fraction of points to keep constant.
+
+    Returns:
+    list: List of fitted parameters from each bootstrap iteration.
+    """
+    bootstrap_results = []
+    n_fixed = int(len(x_data) * fixed_fraction)
+
+    for _ in range(n_iterations):
+        # Select indices to keep fixed (same x, same y, same position)
+        fixed_indices = np.random.choice(len(x_data), size=n_fixed, replace=False)
+        
+        # Create bootstrap sample: x stays the same, y gets modified for non-fixed indices
+        x_bootstrap = x_data.copy()  # x values stay the same for all points
+        y_bootstrap = y_data.copy()  # start with original y values
+        
+        # For non-fixed indices, replace y values with random samples from y_data
+        non_fixed_indices = np.array([i for i in range(len(x_data)) if i not in fixed_indices])
+        sampled_y_values = np.random.choice(y_data, size=len(non_fixed_indices), replace=True)
+        y_bootstrap[non_fixed_indices] = sampled_y_values
+
+        #popt, _, _ = fit_data(x_bootstrap, y_bootstrap, initial_params, fit_params)
+        #bootstrap_results.append(popt)
+        bootstrap_results.append((x_bootstrap, y_bootstrap))
+
+
+
+        # Plot the result of one iteration
+        if _ == 0:  # Plot only the first iteration
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            # Plot fixed points (unchanged x and y) in blue
+            ax.scatter(x_bootstrap[fixed_indices], y_bootstrap[fixed_indices], label='Fixed Points', color='blue', s=10)
+            
+            # Plot resampled points (same x, new y values) in red
+            ax.scatter(x_bootstrap[non_fixed_indices], y_bootstrap[non_fixed_indices], label='Resampled Y Values', color='red', s=10)
+
+            ax.set_title("Bootstrapping Iteration 1")
+            ax.set_xlabel("Scattering Vector q (1/Å)")
+            ax.set_ylabel("Intensity I(q)")
+            ax.legend()
+            ax.grid(True)
+
+            plt.savefig("bootstrapping_iteration_1.png", dpi=300)
+            plt.close(fig)
+
+    return np.array(bootstrap_results)
+
+if __name__ == "__main__":
+    import pandas as pd
+    import os
+    df = pd.read_csv(os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")), "20_06_2025_photoacids_SDS/P_50_S_500_high/P_50_S_500_high_0_00000_avg_filtered_subtracted_simple.dat"), sep='\s+', header=0)
+    
+    print(df.head())
+    print(f"Data shape: {df.shape}")
+
+    test_params = fit_data(df['q'], df['I'], initial_params=initial_params, fit_params=fit_params, method='lm')[0]
+    all_params = {key: test_params[i] for i, key in enumerate([k for k in fit_params.keys() if fit_params[k]])}
+    all_params.update({key: initial_params[key] for key in initial_params if key not in fit_params or not fit_params[key]})
+
+    arr = residuals_bootstrap(df['q'], df['I'], all_params=all_params, fit_params=fit_params, n_iterations=20)
+    
+    ci = compute_confidence_intervals(arr)
+    print(f"Confidence intervals: {ci}")
+
+    import sys
+    sys.exit(0)  # Exit early for testing purposes
+
+    samples = bootstrapping(df['q'], df['I'], n_iterations=20, block_size=5)
+    print(f"Generated {len(samples)} bootstrap samples.")
+    fitted_params = fit_bootstrap_samples(samples, initial_params, fit_params)
+    print(f"Fitted parameters from bootstrap samples: {fitted_params[:5]}")
+
+    confidence_intervals = compute_confidence_intervals(fitted_params)
+    print(f"Confidence intervals for fitted parameters: {confidence_intervals}")
+
+    pd.DataFrame(confidence_intervals).to_csv("confidence_intervals.csv")
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(df['q'], df['I'], label='Data', color='blue', s=10)
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    param_names = list(fitted_params[0].keys())
+    param_values = {name: [params[name] for params in fitted_params] for name in param_names}
+
+    for i, param_name in enumerate(param_names):
+        ax.plot(param_values[param_name], label=param_name, marker='o', linestyle='-', markersize=4)
+
+    ax.set_title("Fitted Parameters from Bootstrap Samples")
+    ax.set_xlabel("Bootstrap Sample Index")
+    ax.set_ylabel("Parameter Value")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig("fitted_parameters_bootstrap.png", dpi=300)
