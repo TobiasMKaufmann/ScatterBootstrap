@@ -2,10 +2,6 @@ import pandas as pd
 import numpy as np
 import re
 
-# =============================================================================
-# EFFECTIVE RADIUS COMPUTATIONS (executed after main plotting routine)
-# =============================================================================
-
 # Load the CSV data for effective radius calculations
 # DO NOT USE THIS METHOD AS FLOATS ARE CONVERTED TO STRINGS AND ROUNDED
 def recreate_multiindex_dataframe(which_file="parameter_summary_multiindex.csv"):
