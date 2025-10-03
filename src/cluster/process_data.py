@@ -82,6 +82,34 @@ Each processed dataset generates an HDF5 file containing:
     - sample: Dataset name
     - processing_stage: Processing status ("bootstrap_analysis")
 
+Configuration
+-------------
+
+**CRITICAL:** Before running, configure these global variables at the top of the script:
+
+.. code-block:: python
+
+    DATASET_FOLDER = "../FOLDER"  # Main folder with subfolders
+    REL_FILE_IDENTIFIER = "IDENTIFIER"  # File suffix
+
+**Required Data Structure:**
+
+.. code-block:: text
+
+    DATASET_FOLDER/
+      ├── sample1/
+      │   └── sample1_{REL_FILE_IDENTIFIER}.dat
+      ├── sample2/
+      │   └── sample2_{REL_FILE_IDENTIFIER}.dat
+      └── sample3/
+          └── sample3_{REL_FILE_IDENTIFIER}.dat
+
+**Requirements:**
+    - All data files MUST have .dat extension
+    - Files MUST be in whitespace-separated format with headers
+    - Each sample has its own subfolder named after the sample
+    - File naming: {sample_name}_{REL_FILE_IDENTIFIER}.dat
+
 Usage Context
 -------------
 
@@ -178,9 +206,28 @@ except ImportError as e:
     print("This might be due to missing dependencies or C extension issues")
     sys.exit(1)
 
+# ============================================================================
+# GLOBAL CONFIGURATION - MODIFY THESE TO MATCH YOUR DATA STRUCTURE
+# ============================================================================
+
+# Main dataset folder containing subfolders for each sample
+DATASET_FOLDER = "../FOLDER_WITH_SUBFOLDERS"  # Change this to your data folder
+
+# File identifier suffix (must be .dat files)
+# Files should be named: {sample_name}_{REL_FILE_IDENTIFIER}.dat
+REL_FILE_IDENTIFIER = "IDENTIFIER"  # Change this to your file identifier
+
+# Data structure should be organized as:
+# DATASET_FOLDER/
+#   ├── sample1/
+#   │   └── sample1_identifier.dat
+#   ├── sample2/
+#   │   └── sample2_identifier.dat
+#   └── ...
+
+# ============================================================================
+
 def main():
-    rel_file = "avg_filtered_subtracted_simple"
-    
     # Load parameters
     with open("../initial_params.json", "r") as f:
         params = json.load(f)
@@ -232,7 +279,7 @@ def main():
     }
 
 
-    structure_factors_to_exclude = ["P_5_S_50_med", "P_0_S_50_high", "P_5_S_50_high"]
+    structure_factors_to_exclude = ["dataset1", "dataset2"]  # Example dataset names without structure factor
 
     
     original_fit_params = fit_params.copy()
@@ -250,9 +297,6 @@ def main():
             structure_factor = True
             fit_params = original_fit_params.copy()
 
-        if which != "P_5_S_50_med":
-            continue  # For testing, process only one dataset
-
         print(f"Processing {which}...")
         
         # Set missing parameters
@@ -262,7 +306,7 @@ def main():
                 d[k] = 0
         
         # Find data file
-        data_pattern = f"../20_06_2025_photoacids_SDS/{which}/*_{rel_file}.dat"
+        data_pattern = f"{DATASET_FOLDER}/{which}/*_{REL_FILE_IDENTIFIER}.dat"
         files = glob.glob(data_pattern)
         
         if not files:
