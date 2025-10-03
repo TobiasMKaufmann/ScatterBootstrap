@@ -1,3 +1,11 @@
+/*
+ * This file contains models adapted from SasView (https://www.sasview.org/)
+ * SasView is available under a BSD 3-Clause License.
+ * 
+ * Original SasView contributors and license information can be found at:
+ * https://github.com/SasView/sasview
+ */
+
 // Hayter-Penfold (rescaled) MSA structure factor for screened Coulomb interactions 
 //
 #include <math.h>

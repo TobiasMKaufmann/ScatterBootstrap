@@ -1,5 +1,5 @@
 {
-    "P_50_S_500_med":{
+    "dataset1":{
         "background":0.001,
         "core_sld":7.7,
         "csalt":0.033096,
@@ -15,7 +15,7 @@
         "vol_frac":0.145572,
         "zz":30.590918
     },
-    "P_0_S_500_med":{
+    "dataset2":{
         "background":0.001,
         "core_sld":7.7,
         "csalt":0.042297,
@@ -30,99 +30,5 @@
         "thickness":6.064591,
         "vol_frac":0.162218,
         "zz":26.417886
-    },
-    "P_50_S_500_high":{
-        "background":0.001,
-        "core_sld":7.7,
-        "csalt":0.141582,
-        "dialec":78.3,
-        "length":35.308653,
-        "radius":13.818776,
-        "radius_effective":24.657512155,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "temp":300.0,
-        "thickness":6.515921,
-        "vol_frac":0.188891,
-        "zz":28.737789
-    },
-    "P_5_S_50_high":{
-        "background":0.001,
-        "core_sld":7.7,
-        "length":40,
-        "radius":16,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "thickness":5.989531
-    },
-    "P_5_S_50_med":{
-        "background":0.001,
-        "core_sld":7.7,
-        "length":40,
-        "radius":16,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "thickness":5.989531
-    },
-    "P_5_S_500_med":{
-        "background":0.001,
-        "core_sld":7.7,
-        "csalt":0.041363,
-        "dialec":78.3,
-        "length":36.454344,
-        "radius":14.237134,
-        "radius_effective":24.7033179685,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "temp":300.0,
-        "thickness":6.091803,
-        "vol_frac":0.139051,
-        "zz":29.431803
-    },
-    "P_0_S_50_high":{
-        "background":0.001,
-        "core_sld":7.7,
-        "length":40,
-        "radius":16,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "thickness":5.989531
-    },
-    "P_0_S_500_high":{
-        "background":0.001,
-        "core_sld":7.7,
-        "csalt":0.143575,
-        "dialec":78.3,
-        "length":37.578119,
-        "radius":14.431929,
-        "radius_effective":24.9505839293,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "temp":300.0,
-        "thickness":6.004533,
-        "vol_frac":0.145467,
-        "zz":18.83608
-    },
-    "P_5_S_500_high":{
-        "background":0.001,
-        "core_sld":7.7,
-        "csalt":0.14492,
-        "dialec":78.3,
-        "length":37.429277,
-        "radius":14.398479,
-        "radius_effective":24.9291199876,
-        "scale":1,
-        "shell_sld":10.989,
-        "solvent_sld":9.4,
-        "temp":300.0,
-        "thickness":6.031272,
-        "vol_frac":0.123041,
-        "zz":25.329082
     }
 }

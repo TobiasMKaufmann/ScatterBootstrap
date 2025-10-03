@@ -27,8 +27,8 @@ hayter_msa_module = Extension(
 # Setup function
 setup(
     name='core_shell_cylinder_project',
-    version='0.2.0',
-    description='A Python project for computing form factors and structure factors for core-shell cylinder models with bootstrapping analysis.',
+    version='0.3.0',
+    description='Advanced SAS analysis with bootstrapping, cluster computing, and high-performance C extensions for core-shell cylinder models.',
     long_description=open('README.md', encoding='utf-8').read() if os.path.exists('README.md') else '',
     long_description_content_type='text/markdown',
     author='Tobias Kaufmann',
@@ -43,11 +43,12 @@ setup(
         'matplotlib>=3.3.0',
         'pandas>=1.3.0',
         'cffi>=1.14.0',
-        'tables>=3.6.0'
+        'tables>=3.6.0',
+        'tqdm>=4.60.0'
     ],
     python_requires='>=3.8',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
@@ -55,7 +56,9 @@ setup(
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Topic :: Scientific/Engineering :: Physics',
+        'Topic :: Scientific/Engineering :: Chemistry',
     ],
-    keywords='scattering, form factor, structure factor, small angle scattering, SAS, SAXS, SANS',
+    keywords='scattering, form factor, structure factor, small angle scattering, SAS, SAXS, SANS, bootstrapping, cluster computing, uncertainty quantification',
 )

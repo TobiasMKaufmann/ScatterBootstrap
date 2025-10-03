@@ -1,4 +1,34 @@
 #!/bin/bash
+
+# =============================================================================
+# SLURM Job Submission Script for ECHEMES Bootstrap Analysis
+# =============================================================================
+#
+# This script handles automated job submission for the ECHEMES bootstrapping
+# framework on ETH HPC systems (Euler/Leonhard). It configures the SLURM
+# environment, loads necessary Python modules, sets up dependencies, and
+# executes the bootstrap analysis pipeline.
+#
+# SLURM Configuration:
+# - 20 hours maximum runtime (adjust based on dataset size)
+# - 4 CPU cores per task (single-threaded analysis with room for I/O)
+# - 2GB memory per CPU (8GB total, suitable for moderate datasets)
+# - Normal partition (adjust for priority/queue requirements)
+#
+# Process Flow:
+# 1. Load ETH HPC Python environment modules
+# 2. Detect and configure Python interpreter
+# 3. Run setup_cluster.py for dependency installation
+# 4. Execute process_data.py for bootstrap analysis
+# 5. Optionally collect results (currently commented out)
+#
+#
+# Monitoring:
+# - Output: echemes_%j.out (stdout and progress)
+# - Errors: echemes_%j.err (stderr and exceptions)
+# - Job ID: %j placeholder replaced by SLURM
+# =============================================================================
+
 #SBATCH --job-name=echemes_bootstrap
 #SBATCH --output=echemes_%j.out
 #SBATCH --error=echemes_%j.err
@@ -37,5 +67,5 @@ $PYTHON setup_cluster.py
 # Run processing
 $PYTHON process_data.py
 
-# Collect results
-$PYTHON collect_results.py
+# # Collect results
+# $PYTHON collect_results.py
