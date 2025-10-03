@@ -87,10 +87,30 @@ Configuration
 
 **CRITICAL:** Before running, configure these global variables at the top of the script:
 
+**Data Location:**
+
 .. code-block:: python
 
     DATASET_FOLDER = "FOLDER"  # Main folder with subfolders
     REL_FILE_IDENTIFIER = "IDENTIFIER"  # File suffix
+
+**Fitting Parameters:**
+
+.. code-block:: python
+
+    FIT_PARAMS_WITH_SF = {...}  # Parameters to fit with structure factor
+    FIT_PARAMS_NO_SF = {...}    # Parameters to fit without structure factor
+    PARAMETER_BOUNDS_WITH_SF = {...}   # Bounds when using structure factor
+    PARAMETER_BOUNDS_NO_SF = {...}     # Bounds when not using structure factor
+    STRUCTURE_FACTORS_TO_EXCLUDE = [...]  # Samples without structure factor
+
+**Fitting Methods:**
+
+.. code-block:: python
+
+    FITTING_METHOD_WITH_SF = "lm"   # Method when using structure factor
+    FITTING_METHOD_NO_SF = "trf"    # Method without structure factor
+    N_BOOTSTRAP_ITERATIONS = 5000   # Number of bootstrap samples
 
 **Required Data Structure:**
 
@@ -109,6 +129,9 @@ Configuration
     - Files MUST be in whitespace-separated format with headers
     - Each sample has its own subfolder named after the sample
     - File naming: {sample_name}_{REL_FILE_IDENTIFIER}.dat
+    - Review ALL fitting parameters and adjust for your specific system
+    - Set appropriate parameter bounds based on expected physical values
+    - Choose fitting methods compatible with your constraints
 
 Usage Context
 -------------
@@ -207,8 +230,12 @@ except ImportError as e:
     sys.exit(1)
 
 # ============================================================================
-# GLOBAL CONFIGURATION - MODIFY THESE TO MATCH YOUR DATA STRUCTURE
+# GLOBAL CONFIGURATION - MODIFY THESE TO MATCH YOUR DATA STRUCTURE AND ANALYSIS
 # ============================================================================
+
+# -----------------------------------------------------------------------------
+# DATA LOCATION CONFIGURATION
+# -----------------------------------------------------------------------------
 
 # Main dataset folder containing subfolders for each sample
 DATASET_FOLDER = "FOLDER_WITH_SUBFOLDERS"  # Change this to your data folder
@@ -225,62 +252,135 @@ REL_FILE_IDENTIFIER = "IDENTIFIER"  # Change this to your file identifier
 #   │   └── sample2_identifier.dat
 #   └── ...
 
+# -----------------------------------------------------------------------------
+# FITTING CONFIGURATION - ADJUST FOR YOUR SPECIFIC ANALYSIS
+# -----------------------------------------------------------------------------
+
+# ⚠️  IMPORTANT: Review and modify these settings based on your data!
+#
+# These parameters control which parameters are fitted vs fixed, parameter bounds,
+# fitting methods, and structure factor usage. The default values are examples
+# and should be adjusted for your specific samples.
+
+# Parameters to fit when using structure factor (True = fit, False = fixed)
+FIT_PARAMS_WITH_SF = {
+    "scale": True,
+    "background": True,
+    "core_sld": False,
+    "shell_sld": False,
+    "solvent_sld": False,
+    "radius": True,
+    "thickness": True,
+    "length": True,
+    "radius_effective": False,
+    "vol_frac": True,
+    "zz": True,
+    "temp": False,
+    "csalt": True,
+    "dialec": False
+}
+
+# Parameters to fit without structure factor (form factor only)
+FIT_PARAMS_NO_SF = {
+    "scale": True,
+    "background": True,
+    "core_sld": False,
+    "shell_sld": False,
+    "solvent_sld": False,
+    "radius": True,
+    "thickness": True,
+    "length": True,
+}
+
+# Parameter bounds for WITH structure factor (if using trf/dogbox methods)
+# Only used if FITTING_METHOD_WITH_SF is set to "trf" or "dogbox"
+PARAMETER_BOUNDS_WITH_SF = {
+    "scale": (0, np.inf),
+    "background": (0, np.inf),
+    "core_sld": (0, np.inf),
+    "shell_sld": (0, np.inf),
+    "solvent_sld": (0, np.inf),
+    "radius": (11, 18),          # ⚠️  Adjust for your particle size!
+    "thickness": (5.5, 7),        # ⚠️  Adjust for your shell thickness!
+    "length": (25, 50),           # ⚠️  Adjust for your cylinder length!
+    # Structure factor parameters (if fitted):
+    "radius_effective": (0, 500),
+    "vol_frac": (0.0, 1),
+    "zz": (0, 100),
+    "temp": (273, 373),
+    "csalt": (0, 0.5),
+    "dialec": (1, np.inf)
+}
+
+# Parameter bounds for WITHOUT structure factor (typically used with trf/dogbox)
+# Adjust ranges for your system!
+PARAMETER_BOUNDS_NO_SF = {
+    "scale": (0, np.inf),
+    "background": (0, np.inf),
+    "core_sld": (0, np.inf),
+    "shell_sld": (0, np.inf),
+    "solvent_sld": (0, np.inf),
+    "radius": (11, 18),          # ⚠️  Adjust for your particle size!
+    "thickness": (5.5, 7),        # ⚠️  Adjust for your shell thickness!
+    "length": (25, 50),           # ⚠️  Adjust for your cylinder length!
+}
+
+# Datasets to exclude from structure factor calculations
+# List sample names that should be fitted without structure factor
+STRUCTURE_FACTORS_TO_EXCLUDE = ["dataset1", "dataset2"]  # ⚠️  Replace with your sample names!
+
+# -----------------------------------------------------------------------------
+# FITTING METHOD CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# ⚠️  CRITICAL: Choose appropriate fitting methods for your data!
+#
+# Two fitting scenarios are defined:
+# 1. WITH structure factor: Uses Levenberg-Marquardt ("lm") - unbounded optimization
+# 2. WITHOUT structure factor: Uses Trust Region Reflective ("trf") - supports bounds
+#
+# Available methods: "lm" (Levenberg-Marquardt), "trf" (Trust Region), "dogbox"
+# 
+# To change methods, modify the if/elif blocks in the fitting sections below:
+#   - Search for: method="lm" and method="trf"
+#   - Change to your preferred method
+#   - Add/remove bounds parameter as needed (lm doesn't support bounds)
+
+FITTING_METHOD_WITH_SF = "lm"      # ⚠️  Method when using structure factor
+FITTING_METHOD_NO_SF = "trf"       # ⚠️  Method without structure factor (supports bounds)
+
+# Number of bootstrap iterations (higher = better statistics, longer runtime)
+N_BOOTSTRAP_ITERATIONS = 5000      # ⚠️  Adjust based on desired precision vs compute time
+
 # ============================================================================
 
 def main():
-    # Load parameters
+    """
+    Main processing function for cluster bootstrap analysis.
+    
+    ⚠️  BEFORE RUNNING: Ensure all global configuration variables are set!
+    
+    This function:
+    1. Loads initial parameters from initial_params.json
+    2. Processes each dataset using configured fitting parameters
+    3. Determines structure factor usage per dataset
+    4. Performs initial fit with configured method
+    5. Runs bootstrap analysis with configured iterations
+    6. Saves results to HDF5 files in bootstrap_data/
+    
+    Configuration is controlled by global variables at top of script.
+    See documentation header for detailed configuration instructions.
+    """
+    # Load parameters from initial_params.json
     with open("../initial_params.json", "r") as f:
         params = json.load(f)
     
-    fit_params = {
-        "scale": True,
-        "background": True,
-        "core_sld": False,
-        "shell_sld": False,
-        "solvent_sld": False,
-        "radius": True,
-        "thickness": True,
-        "length": True,
-        "radius_effective": False,
-        "vol_frac": True,
-        "zz": True,
-        "temp": False,
-        "csalt": True,
-        "dialec": False
-    }
-
-    fit_params_no_sf = {
-        "scale": True,
-        "background": True,
-        "core_sld": False,
-        "shell_sld": False,
-        "solvent_sld": False,
-        "radius": True,
-        "thickness": True,
-        "length": True,
-    }
-
-    # Change as needed
-    bounds = {
-        "scale": (0, np.inf),
-        "background": (0, np.inf),
-        "core_sld": (0, np.inf),
-        "shell_sld": (0, np.inf),
-        "solvent_sld": (0, np.inf),
-        "radius": (11, 18),
-        "thickness": (5.5, 7),
-        "length": (25, 50),
-        # "radius_effective": (0, 500),
-        # "vol_frac": (0.0, 1),
-        # "zz": (0, 100),
-        # "temp": (273, 373),
-        # "csalt": (0, 0.5),
-        # "dialec": (1, np.inf)
-    }
-
-
-    structure_factors_to_exclude = ["dataset1", "dataset2"]  # Example dataset names without structure factor
-
+    # Use global configuration variables
+    fit_params = FIT_PARAMS_WITH_SF.copy()
+    fit_params_no_sf = FIT_PARAMS_NO_SF.copy()
+    bounds_with_sf = PARAMETER_BOUNDS_WITH_SF.copy()
+    bounds_no_sf = PARAMETER_BOUNDS_NO_SF.copy()
+    structure_factors_to_exclude = STRUCTURE_FACTORS_TO_EXCLUDE
     
     original_fit_params = fit_params.copy()
     
@@ -332,17 +432,23 @@ def main():
                 
 
                 # Perform initial fit
+                # ⚠️  FITTING METHOD CONFIGURATION:
+                # To change fitting method or bounds, modify the global variables:
+                # - FITTING_METHOD_WITH_SF and PARAMETER_BOUNDS_WITH_SF
+                # - FITTING_METHOD_NO_SF and PARAMETER_BOUNDS_NO_SF
                 print(f"  Initial fit...")
                 if structure_factor:
-                    print("  Using structure factor")
+                    print(f"  Using structure factor (method: {FITTING_METHOD_WITH_SF})")
                     first_fit, covariance, names = fit_data(file["q"], file["I"], 
-                                                            initial_params=d, fit_params=fit_params, method="lm", 
-                                                            structure_factor=structure_factor)
+                                                            initial_params=d, fit_params=fit_params, 
+                                                            method=FITTING_METHOD_WITH_SF, 
+                                                            structure_factor=structure_factor, bounds=bounds_with_sf)
                 elif not structure_factor:
-                    print("  Not using structure factor")
+                    print(f"  Not using structure factor (method: {FITTING_METHOD_NO_SF})")
                     first_fit, covariance, names = fit_data(file["q"], file["I"], 
-                                                            initial_params=d, fit_params=fit_params, method="trf", 
-                                                            structure_factor=structure_factor, bounds=bounds)
+                                                            initial_params=d, fit_params=fit_params, 
+                                                            method=FITTING_METHOD_NO_SF, 
+                                                            structure_factor=structure_factor, bounds=bounds_no_sf)
                 # new_initial_params = {name: val for name, val in zip(names, first_fit)}
                 # new_initial_params.update({name: val for name, val in d.items if not fit_params[name]})
                 
@@ -368,17 +474,23 @@ def main():
                                                  index=list(fit_params.keys()))
                 store.put('first_fit_params', first_fit_params_df)
                 
-                print(f"  Bootstrap analysis...")
+                # Bootstrap analysis
+                # ⚠️  BOOTSTRAP CONFIGURATION:
+                # Number of iterations: N_BOOTSTRAP_ITERATIONS (currently: {N_BOOTSTRAP_ITERATIONS})
+                # Fitting methods and bounds same as initial fit (see global variables)
+                print(f"  Bootstrap analysis ({N_BOOTSTRAP_ITERATIONS} iterations)...")
                 if structure_factor:
-                    print("  Using structure factor")
+                    print(f"  Using structure factor (method: {FITTING_METHOD_WITH_SF})")
                     bootstrap_results = residuals_bootstrap(file["q"], file["I"], new_initial_params, fit_params, 
-                                                            n_iterations=5000, store=store, method="lm", 
-                                                            structure_factor=structure_factor)
+                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store, 
+                                                            method=FITTING_METHOD_WITH_SF, 
+                                                            structure_factor=structure_factor, bounds=bounds_with_sf)
                 elif not structure_factor:
-                    print("  Not using structure factor")
+                    print(f"  Not using structure factor (method: {FITTING_METHOD_NO_SF})")
                     bootstrap_results = residuals_bootstrap(file["q"], file["I"], new_initial_params, fit_params, 
-                                                            n_iterations=5000, store=store, method="trf", 
-                                                            structure_factor=structure_factor, bounds=bounds)
+                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store, 
+                                                            method=FITTING_METHOD_NO_SF, 
+                                                            structure_factor=structure_factor, bounds=bounds_no_sf)
 
                 print(f"  Computing confidence intervals...")
                 confidence_intervals = compute_confidence_intervals(bootstrap_results)
