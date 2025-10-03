@@ -43,15 +43,78 @@ DATASET_FOLDER/                    # Main folder
 
 ### Configuration in process_data.py:
 
-Edit these global variables at the top of `process_data.py`:
+**⚠️ CRITICAL:** Edit all global configuration variables at the top of `process_data.py` before running!
+
+#### Data Location Configuration:
 
 ```python
 # Main dataset folder containing subfolders for each sample
-DATASET_FOLDER = "FOLDER"
+DATASET_FOLDER = "FOLDER_WITH_SUBFOLDERS"
 
 # File identifier suffix (must be .dat files)
 REL_FILE_IDENTIFIER = "IDENTIFIER"
 ```
+
+#### Fitting Parameters Configuration:
+
+```python
+# Parameters to fit (True = fit, False = fixed)
+FIT_PARAMS_WITH_SF = {
+    "scale": True,
+    "radius": True,
+    "thickness": True,
+    # ... adjust for your analysis
+}
+
+# Parameters to fit without structure factor
+FIT_PARAMS_NO_SF = {
+    "scale": True,
+    "radius": True,
+    # ... form factor parameters only
+}
+
+# Parameter bounds when USING structure factor (for trf/dogbox methods)
+PARAMETER_BOUNDS_WITH_SF = {
+    "radius": (11, 18),        # ⚠️ Adjust for your particle size!
+    "thickness": (5.5, 7),     # ⚠️ Adjust for your shell!
+    "length": (25, 50),        # ⚠️ Adjust for your cylinders!
+    # ... including structure factor parameters if fitted
+}
+
+# Parameter bounds when NOT using structure factor (for trf/dogbox methods)
+PARAMETER_BOUNDS_NO_SF = {
+    "radius": (11, 18),        # ⚠️ Adjust for your particle size!
+    "thickness": (5.5, 7),     # ⚠️ Adjust for your shell!
+    "length": (25, 50),        # ⚠️ Adjust for your cylinders!
+    # ... form factor parameters only
+}
+    # ... other parameters
+}
+
+# Samples to exclude from structure factor calculations
+STRUCTURE_FACTORS_TO_EXCLUDE = ["sample1", "sample2"]  # ⚠️ Add your samples!
+```
+
+#### Fitting Method Configuration:
+
+```python
+# Fitting methods (change based on your needs)
+FITTING_METHOD_WITH_SF = "lm"      # Levenberg-Marquardt (no bounds)
+FITTING_METHOD_NO_SF = "trf"       # Trust Region (supports bounds)
+
+# Bootstrap iterations (higher = better statistics, longer runtime)
+N_BOOTSTRAP_ITERATIONS = 5000      # ⚠️ Adjust for precision vs time trade-off
+```
+
+**Important Notes:**
+- **Review ALL parameters** - Default values are examples only!
+- **Adjust bounds separately** for with/without structure factor scenarios
+  - `PARAMETER_BOUNDS_WITH_SF`: Can include structure factor parameter bounds
+  - `PARAMETER_BOUNDS_NO_SF`: Typically only form factor parameters
+- **Choose appropriate methods**: "lm" (fast, no bounds), "trf" (supports bounds), "dogbox"
+- **Structure factor exclusion**: List samples that should use form factor only
+- **Bootstrap iterations**: Start with fewer iterations (e.g., 100) for testing
+- **Method compatibility**: "lm" doesn't support bounds; use "trf" or "dogbox" if bounds needed
 
 **Example:** If your sample is named `P_5_S_50_high` and your `REL_FILE_IDENTIFIER` is `avg_filtered_subtracted_simple`, the script will look for:
 ```
@@ -60,15 +123,42 @@ REL_FILE_IDENTIFIER = "IDENTIFIER"
 
 ## Quick Start Workflow
 
-### 1. Initial Setup
+### 1. Initial Setup (CRITICAL - Review All Settings!)
+
+**⚠️ WARNING:** Do not skip configuration! Default values are examples only.
+
 ```bash
 # Edit transfer.sh with your NetHz credentials
 nano transfer.sh
 # Set: CLUSTER_USER="your_nethz"
 
-# Configure data paths in process_data.py
+# Configure ALL settings in process_data.py
 nano process_data.py
-# Set: DATASET_FOLDER and REL_FILE_IDENTIFIER
+```
+
+**Required Configuration in process_data.py:**
+
+1. **Data Location:**
+   - Set `DATASET_FOLDER` to your data directory
+   - Set `REL_FILE_IDENTIFIER` to your file naming pattern
+
+2. **Fitting Parameters:**
+   - Review `FIT_PARAMS_WITH_SF` - which parameters to fit with structure factor
+   - Review `FIT_PARAMS_NO_SF` - which parameters to fit without structure factor
+   - Adjust `PARAMETER_BOUNDS_WITH_SF` - bounds when using structure factor
+   - Adjust `PARAMETER_BOUNDS_NO_SF` - bounds when not using structure factor
+   - Update `STRUCTURE_FACTORS_TO_EXCLUDE` - list samples without structure factor
+
+3. **Fitting Methods:**
+   - Set `FITTING_METHOD_WITH_SF` (default: "lm")
+   - Set `FITTING_METHOD_NO_SF` (default: "trf")
+   - Adjust `N_BOOTSTRAP_ITERATIONS` (default: 5000)
+
+**Testing Recommendation:**
+- Start with `N_BOOTSTRAP_ITERATIONS = 100` for initial testing
+- Verify fits are reasonable before running full 5000 iterations
+- Check one dataset completes successfully before processing all
+
 ```
 
 ### 2. Upload and Submit Job
