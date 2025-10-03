@@ -89,7 +89,7 @@ Configuration
 
 .. code-block:: python
 
-    DATASET_FOLDER = "../FOLDER"  # Main folder with subfolders
+    DATASET_FOLDER = "FOLDER"  # Main folder with subfolders
     REL_FILE_IDENTIFIER = "IDENTIFIER"  # File suffix
 
 **Required Data Structure:**
