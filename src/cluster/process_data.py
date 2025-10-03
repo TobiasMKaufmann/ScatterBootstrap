@@ -211,7 +211,7 @@ except ImportError as e:
 # ============================================================================
 
 # Main dataset folder containing subfolders for each sample
-DATASET_FOLDER = "../FOLDER_WITH_SUBFOLDERS"  # Change this to your data folder
+DATASET_FOLDER = "FOLDER_WITH_SUBFOLDERS"  # Change this to your data folder
 
 # File identifier suffix (must be .dat files)
 # Files should be named: {sample_name}_{REL_FILE_IDENTIFIER}.dat
