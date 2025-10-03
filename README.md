@@ -234,9 +234,6 @@ print("95% Confidence intervals:", confidence_intervals)
 │   │   ├── setup_cluster.py               # Dependency installation for cluster
 │   │   ├── transfer.sh                    # File transfer and job management
 │   │   ├── requirements_cluster.txt       # Minimal cluster dependencies
-│   │   └── bootstrap_data/                # Output directory for HDF5 results
-│   ├── old/                               # Deprecated code for reference
-│   └── 20_06_2025_photoacids_SDS/         # Example experimental data
 ├── requirements.txt                       # Python dependencies
 ├── setup.py                              # Package installation script
 ├── pyproject.toml                        # Modern Python package configuration
