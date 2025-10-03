@@ -176,7 +176,19 @@ initial_params = {
 }
 
 # Define which parameters to fit
-fit_params = ['scale', 'background', 'radius', 'thickness', 'length', 'vol_frac']
+fit_params = {
+    'scale': True,
+    'background': True,
+    'radius': True,
+    'thickness': True,
+    'length': True,
+    'vol_frac': True,
+    'radius_effective': False,
+    'zz': False,
+    'temp': False,
+    'csalt': False,
+    'dialec': False
+}
 
 # Fit parameters to experimental data
 fitted_params, covariance = fit_data(q_exp, I_exp, initial_params, fit_params)
@@ -460,7 +472,19 @@ sphere_initial_params = {
     "dialec": 78.3          # For structure factor
 }
 
-sphere_fit_params = ['scale', 'background', 'radius', 'sld']  # Parameters to fit
+sphere_fit_params = {
+    "scale": True,          # Fit this parameter
+    "background": True,     # Fit this parameter
+    "radius": True,         # Fit this parameter
+    "sld": True,            # Fit this parameter
+    "solvent_sld": False,   # Keep this fixed
+    "radius_effective": False,  # Keep this fixed
+    "vol_frac": False,      # Keep this fixed
+    "zz": False,            # Keep this fixed
+    "temp": False,          # Keep this fixed
+    "csalt": False,         # Keep this fixed
+    "dialec": False         # Keep this fixed
+}
 
 # Use with existing functions - no modification needed!
 fitted_params, covariance = fit_data(x_data, y_data, 
@@ -482,12 +506,22 @@ def get_model_functions_and_params(model_type):
     """Return appropriate functions and default parameters for different models"""
     
     if model_type == "sphere":
+        sphere_fit_params = {
+            "scale": True, "background": True, "radius": True, "sld": True,
+            "solvent_sld": False, "radius_effective": False, "vol_frac": False,
+            "zz": False, "temp": False, "csalt": False, "dialec": False
+        }
         return (sphere_intensity_for_fitting, sphere_form_factor_for_fitting, 
-                sphere_initial_params, ['scale', 'background', 'radius', 'sld'])
+                sphere_initial_params, sphere_fit_params)
     
     elif model_type == "core_shell_cylinder":
+        cylinder_fit_params = {
+            "scale": True, "background": True, "radius": True, 
+            "thickness": True, "length": True, "core_sld": False,
+            "shell_sld": False, "solvent_sld": False
+        }
         return (intensity_for_fitting, form_factor_for_fitting,
-                initial_params, ['scale', 'background', 'radius', 'thickness', 'length'])
+                initial_params, cylinder_fit_params)
     
     else:
         raise ValueError(f"Unknown model type: {model_type}")
@@ -574,7 +608,13 @@ my_sphere_params = {
     # ... structure factor params if needed
 }
 
-my_fit_params = ['scale', 'radius', 'sld']  # What to fit
+my_fit_params = {
+    "scale": True,
+    "radius": True,
+    "sld": True,
+    "background": False,
+    "solvent_sld": False
+}
 
 # 3. Use existing framework functions unchanged!
 fitted_params, cov = fit_data(q_data, I_data, my_sphere_params, my_fit_params)
