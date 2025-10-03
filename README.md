@@ -9,7 +9,7 @@ A comprehensive Python package for analyzing small-angle scattering (SAS) data u
 - **Residuals bootstrapping analysis** for uncertainty quantification
 - **Parameter fitting** with robust optimization algorithms
 - **Comprehensive visualization tools** for data analysis
-- **High-performance C extensions** (~50-100x speedup over pure Python)
+- **High-performance C extensions**
 
 ## System Requirements
 
