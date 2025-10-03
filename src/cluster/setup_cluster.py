@@ -1,3 +1,55 @@
+"""
+Cluster Environment Setup and C Extension Builder
+
+This script handles the automated setup of the Python environment and C extensions
+for the ECHEMES bootstrapping framework on ETH HPC systems. It ensures all necessary
+dependencies are installed and C extensions are properly compiled for the cluster
+architecture.
+
+Key Functions:
+=============
+
+Dependency Management:
+- Automatic detection of available Python and pip
+- User-space installation of required Python packages
+- Fallback mechanisms for different cluster configurations
+- Compatibility with ETH HPC module system
+
+C Extension Handling:
+- Automatic detection of existing compiled extensions
+- Cross-platform compilation with appropriate flags
+- Cleanup of incompatible binaries from local builds
+- Verification of successful compilation
+
+Error Recovery:
+- Graceful handling of missing system packages
+- Alternative installation methods for restricted environments
+- Detailed logging of setup progress and issues
+- Non-fatal warnings for optional dependencies
+
+Cluster Compatibility:
+- Optimized for ETH HPC (Euler/Leonhard) systems
+- Compatible with standard Linux HPC environments
+- Works with both system and module-based Python installations
+- Handles restricted user permissions appropriately
+
+Required System Components:
+- Python 3.8+ with development headers
+- C compiler (gcc or clang)
+- Standard build tools (make, etc.)
+- Network access for package downloads
+
+Generated Files:
+- Compiled C extensions (.so files)
+- User-space Python package installations
+- Setup verification logs
+
+Usage:
+    python setup_cluster.py
+
+This script is automatically called by submit_job.sh during job execution.
+"""
+
 import subprocess
 import sys
 import os

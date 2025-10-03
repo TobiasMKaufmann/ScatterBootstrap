@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-10-03
+
+### Added
+- **Cluster Computing Framework**: Complete ETH HPC (Euler/Leonhard) integration
+  - `transfer.sh`: Comprehensive file transfer and job management script
+  - `submit_job.sh`: SLURM job submission with automatic resource allocation
+  - `setup_cluster.py`: Automated dependency installation on cluster
+  - `process_data.py`: Optimized batch processing for HDF5 output only
+- **Data Extraction Tools**: Modular functions for bootstrap result analysis
+  - `data_extraction_functions.py`: Complete suite of analysis functions
+  - `data_extraction_example.py`: Usage examples and workflows
+  - `fitted_params_table.py`: Parameter validation and quality assurance
+- **Improved Documentation**:
+  - Standardized NumPy-style docstrings across all modules
+  - Enhanced module headers with comprehensive usage examples
+  - Added `cluster/README.md` with complete cluster workflow documentation
+  - Improved function parameter descriptions and return value documentation
+
+### Changed
+- **Streamlined Project Structure**: Removed deprecated files and scripts
+  - Removed `main.py`, `data.py` (functionality integrated into `utils.py`)
+  - Removed `initial_params_all_structure_factors.json` (use single config)
+  - Deprecated `collect_results.py` (replaced by `transfer.sh retrieve`)
+  - Moved old code to `src/old/` directory for reference
+- **Enhanced Transfer Script**: Made `retrieve` the primary download method
+  - Intelligent file exclusions (old/, *.h5, *.so, .git/)
+  - Comprehensive command documentation in header
+  - Added 11 commands: to, retrieve, from, test, status, check, logs, viewlog, clean, list, delete
+- **Improved Documentation Format**: Consistent ReStructuredText-style formatting
+  - All module docstrings follow scientific Python standards
+  - Better IDE integration and Sphinx compatibility
+  - Clear section headers and hierarchical organization
+
+### Fixed
+- Documentation consistency across all Python modules
+- Cluster workflow commands and file transfer logic
+- Parameter dictionary handling in custom model examples
+
 ## [0.2.0] - 2025-09-29
 
 ### Added

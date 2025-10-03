@@ -1,4 +1,14 @@
-/*							j1.c
+/*
+ * This file contains models adapted from SasView (https://www.sasview.org/)
+ * SasView is available under a BSD 3-Clause License.
+ * 
+ * Original SasView contributors and license information can be found at:
+ * https://github.com/SasView/sasview
+ */
+
+/*						j1.c
+ *
+ *	Bessel function of order one						j1.c
  *
  *	Bessel function of order one
  *

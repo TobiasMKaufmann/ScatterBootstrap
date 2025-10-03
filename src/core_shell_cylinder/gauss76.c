@@ -1,4 +1,13 @@
 // filepath: /workspace/core_shell_cylinder_project/src/core_shell_cylinder/gauss76.c
+/*
+ * This file contains models adapted from SasView (https://www.sasview.org/)
+ * SasView is available under a BSD 3-Clause License.
+ * 
+ * Original SasView contributors and license information can be found at:
+ * https://github.com/SasView/sasview
+ */
+
+// filepath: /workspace/core_shell_cylinder_project/src/core_shell_cylinder/gauss76.c
 // Created by Andrew Jackson on 4/23/07
 
 #ifdef GAUSS_N

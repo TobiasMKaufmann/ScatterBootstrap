@@ -1,7 +1,148 @@
+"""
+Plot Comparisons Utility
+=========================
+
+Functionality for creating side-by-side visual comparisons between different fitting
+results from bootstrap analysis. Particularly useful for validating improvements in
+fitting algorithms or comparing results from different analysis runs.
+
+Key Features
+------------
+
+**Data Loading:**
+    - Load fitted parameters from HDF5 files
+    - Extract raw experimental data automatically
+    - Handle multiple datasets in batch mode
+    - Graceful handling of missing datasets
+
+**Model Configuration:**
+    - Automatic structure factor detection
+    - Parameter-based model selection
+    - Support for form-factor-only analyses
+    - Flexible parameter handling
+
+**Visualization:**
+    - Side-by-side comparison images
+    - Individual fit plots for old and new results
+    - High-quality output with customizable resolution
+    - Organized naming scheme for easy identification
+    - Automatic cleanup of temporary files
+
+**Batch Processing:**
+    - Process entire folders of HDF5 files
+    - Match corresponding old/new datasets
+    - Handle missing comparisons gracefully
+    - Generate comprehensive comparison sets
+
+Workflow
+--------
+
+1. Loads fitted parameters and experimental data from HDF5 stores
+2. Determines appropriate model settings (structure factor usage)
+3. Generates individual fit plots using plotting utilities
+4. Combines plots side-by-side for easy visual comparison
+5. Saves comparison images with organized naming scheme
+6. Cleans up temporary files automatically
+
+Use Cases
+---------
+
+**Algorithm Validation:**
+    Compare results before and after algorithm improvements to verify that
+    changes produce better fits without introducing artifacts.
+
+**Quality Assurance:**
+    Generate comparison plots for all datasets to quickly identify which
+    analyses improved and which may need manual review.
+
+**Publication Figures:**
+    Create publication-ready comparison figures showing improvement in
+    fitting quality across multiple datasets.
+
+**Troubleshooting:**
+    Identify systematic issues by comparing successful and problematic fits
+    side-by-side to understand failure modes.
+
+Functions
+---------
+
+**load_h5_datasets(base_folder):**
+    Load all HDF5 files from a folder and extract fitted parameters and raw data.
+    Returns dictionary with dataset names as keys.
+
+**determine_structure_factor(params_dict):**
+    Check parameter dictionary to determine if structure factor should be used.
+    Returns boolean indicating structure factor availability.
+
+**create_comparison_plots_from_h5(new_folder, old_folder, output_folder):**
+    Main function to create side-by-side comparison plots from two sets of
+    HDF5 analysis results.
+
+Usage Example
+-------------
+
+**Basic Comparison:**
+
+.. code-block:: python
+
+    from plot_comparisons import create_comparison_plots_from_h5
+    
+    # Compare new analysis results against baseline
+    create_comparison_plots_from_h5(
+        new_folder='cluster/new_bootstrap_data',
+        old_folder='cluster/old_bootstrap_data',
+        output_folder='comparison_plots'
+    )
+
+**Custom Configuration:**
+
+.. code-block:: python
+
+    from plot_comparisons import (
+        load_h5_datasets,
+        determine_structure_factor,
+        create_comparison_plots_from_h5
+    )
+    
+    # Load specific datasets
+    new_data = load_h5_datasets('new_results')
+    old_data = load_h5_datasets('old_results')
+    
+    # Check what datasets are available
+    common_datasets = set(new_data.keys()) & set(old_data.keys())
+    print(f"Found {len(common_datasets)} datasets for comparison")
+    
+    # Generate comparisons
+    create_comparison_plots_from_h5('new_results', 'old_results')
+
+Output Format
+-------------
+
+**Comparison Images:**
+    - Format: PNG with 300 DPI
+    - Layout: Two panels side-by-side (old left, new right)
+    - Naming: comparison_{dataset_name}.png
+    - Location: Specified output folder
+
+**Individual Plots:**
+    - Temporary plots created during processing
+    - Automatically cleaned up after combination
+    - Can be preserved by modifying cleanup code
+
+Notes
+-----
+This module depends on utils_old.py for backward compatibility with previous
+analysis versions. Ensure plot_fit_data function is available for generating
+individual fit plots.
+
+The module uses PIL (Pillow) for image manipulation to create side-by-side
+comparisons from individual plot files.
+"""
+
 import pandas as pd
 import numpy as np
 import os
-from utils_old import plot_fit_data
+from old.utils_old import plot_fit_data
 from PIL import Image
 
 # Folder to save results to:
@@ -9,12 +150,21 @@ folder = "fit_results"
 
 def load_h5_datasets(base_folder):
     """
-    Load all datasets from H5 files in the specified folder.
+    Load all datasets from HDF5 files in the specified folder.
     
-    base_folder (str): Path to folder containing .h5 files
+    Parameters
+    ----------
+    base_folder : str
+        Path to folder containing HDF5 (.h5) files with bootstrap results.
     
-    Returns:
-    dict: Dictionary with dataset names as keys and (params_dict, q_data, I_data) as values
+    Returns
+    -------
+    dict
+        Dictionary with dataset names as keys and tuples as values.
+        Each tuple contains (params_dict, q_data, I_data) where:
+        - params_dict : dict of fitted parameter values
+        - q_data : numpy.ndarray of scattering vector values
+        - I_data : numpy.ndarray of intensity values
     """
     datasets = {}
     
@@ -55,10 +205,16 @@ def determine_structure_factor(params_dict):
     """
     Determine if structure factor should be used based on available parameters.
     
-    params_dict (dict): Parameter dictionary
+    Parameters
+    ----------
+    params_dict : dict
+        Parameter dictionary containing fitted or initial parameter values.
     
-    Returns:
-    bool: True if structure factor parameters are available
+    Returns
+    -------
+    bool
+        True if all structure factor parameters (radius_effective, vol_frac, zz,
+        temp, csalt, dialec) are present and not None, False otherwise.
     """
     # Structure factor parameters needed
     sf_params = ['radius_effective', 'vol_frac', 'zz', 'temp', 'csalt', 'dialec']
@@ -70,12 +226,26 @@ def determine_structure_factor(params_dict):
 
 def create_comparison_plots_from_h5(new_folder, old_folder, output_folder=None):
     """
-    Create side-by-side comparison plots using H5 data and plot_fit_data.
+    Create side-by-side comparison plots from old and new HDF5 analysis results.
     
-    Parameters:
-    new_folder (str): Path to folder with new H5 files
-    old_folder (str): Path to folder with old H5 files  
-    output_folder (str): Folder to save the plots
+    This function loads fitted parameters and raw data from two sets of HDF5 files,
+    generates individual fit plots for each, and combines them side-by-side for
+    easy visual comparison of analysis improvements.
+    
+    Parameters
+    ----------
+    new_folder : str
+        Path to folder containing new/updated HDF5 files with bootstrap results.
+    old_folder : str
+        Path to folder containing old/baseline HDF5 files for comparison.
+    output_folder : str, optional
+        Folder path to save the comparison plots. If None, uses the module-level
+        'folder' variable. Default is None.
+    
+    Returns
+    -------
+    None
+        Generates and saves comparison plot images to the specified output folder.
     """
     
     if output_folder is None:
@@ -195,12 +365,3 @@ def create_comparison_plots_from_h5(new_folder, old_folder, output_folder=None):
         print("Temporary files cleaned up")
     except Exception as e:
         print(f"Warning: Could not clean up temp folder: {e}")
-
-# Generate comparison plots using H5 data
-print("Creating comparison plots from H5 files...")
-new_h5_folder = "cluster/new_bootstrap_data"
-old_h5_folder = "cluster/old_data/bootstrap_data"
-
-create_comparison_plots_from_h5(new_h5_folder, old_h5_folder, folder)
-
-print("Comparison plots completed!")

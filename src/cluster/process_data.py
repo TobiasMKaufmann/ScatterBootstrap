@@ -1,7 +1,164 @@
 #!/usr/bin/env python
 """
-Cluster version of data.py - no plotting, optimized for batch processing
+High-Performance Cluster Bootstrap Analysis
+============================================
+
+Main processing script for the ECHEMES cluster computing framework, designed for
+high-throughput bootstrap analysis on ETH HPC systems (Euler/Leonhard) using SLURM
+job scheduling. Provides a streamlined, plotting-free version of the core analysis
+optimized for batch processing of multiple SAS datasets.
+
+Cluster Framework Overview
+--------------------------
+
+This script is part of a complete cluster computing workflow:
+
+**Core Scripts:**
+    - process_data.py (THIS FILE) - Main bootstrap analysis execution
+    - submit_job.sh - SLURM job submission script for ETH HPC
+    - setup_cluster.py - Dependency installation and C extension building
+    - transfer.sh - Bidirectional file transfer and job management
+
+**Configuration:**
+    - content_verification.py - Quality assurance for analysis results
+    - requirements_cluster.txt - Minimal dependency specification
+    - README.md - Complete cluster usage documentation
+
+Key Features
+------------
+
+**High-Performance Processing:**
+    - Optimized for ETH HPC (Euler/Leonhard) SLURM environment
+    - Minimal dependencies for cluster compatibility
+    - No GUI/plotting dependencies - pure computational focus
+    - Efficient memory management for large bootstrap iterations
+
+**Automated Analysis Pipeline:**
+    - Batch processing of multiple SAS datasets from JSON configuration
+    - Automatic structure factor detection and model selection
+    - Configurable bootstrap iterations (default: 5000 per dataset)
+    - Intelligent parameter bounds and fitting constraints
+    - Comprehensive error handling and progress reporting
+
+**Data Management:**
+    - HDF5-based result storage for efficient I/O
+    - Structured metadata preservation
+    - Raw data, fitted parameters, and bootstrap results in single files
+    - Automatic confidence interval calculation and storage
+
+**Flexibility:**
+    - Dataset-specific structure factor inclusion/exclusion
+    - Configurable fitting parameters and bounds per analysis
+    - Support for both Levenberg-Marquardt and Trust Region algorithms
+    - Selective dataset processing for testing and validation
+
+**Cluster Integration:**
+    - Compatible with ETH HPC module system
+    - Automatic Python environment detection and setup
+    - SLURM-optimized resource allocation (CPU, memory, time)
+    - Remote monitoring and result retrieval capabilities
+
+Output Structure
+----------------
+
+Each processed dataset generates an HDF5 file containing:
+
+**Primary Data:**
+    - raw_data: Original experimental q, I data
+    - initial_params: Starting parameter values
+    - residuals: Fit residuals from initial fit
+
+**Fitting Results:**
+    - first_fit_params: Initial fit results with fitted flags (value, fitted columns)
+
+**Bootstrap Results (5000 iterations by default):**
+    - fitted_params/s0 to s4999: Parameter values from each bootstrap sample
+    - synthetic_y/s0 to s4999: Synthetic intensity data for each bootstrap sample
+
+**Statistical Summary:**
+    - confidence_intervals: Parameter uncertainty bounds (95% CI by default)
+
+**Metadata Attributes:**
+    - sample: Dataset name
+    - processing_stage: Processing status ("bootstrap_analysis")
+
+Usage Context
+-------------
+
+This script is typically executed via the SLURM job system:
+
+.. code-block:: bash
+
+    sbatch submit_job.sh
+
+Or through the complete workflow:
+
+.. code-block:: bash
+
+    ./transfer.sh to        # Upload and submit job
+    ./transfer.sh status    # Monitor progress
+    ./transfer.sh retrieve  # Retrieve results
+
+The cluster framework enables processing of computationally intensive bootstrap
+analyses that would be impractical on local workstations, particularly for
+large datasets or high iteration counts.
+
+Cluster Compatibility
+---------------------
+
+While optimized for ETH HPC systems, this framework can be adapted for other
+HPC clusters with similar architecture:
+
+**Compatible Systems:**
+    - SLURM-based job schedulers (LLNL SLURM, SchedMD SLURM)
+    - PBS/Torque systems (with script modifications)
+    - Linux-based HPC clusters (CentOS, RHEL, Ubuntu)
+    - x86_64 architecture with Python 3.8+ support
+    - Systems with module environment management
+
+**Required Cluster Features:**
+    - Shared filesystem accessible from compute nodes
+    - Python development headers and C compiler (gcc/clang)
+    - Scientific Python stack availability (numpy, scipy, pandas)
+    - HDF5 libraries for data storage
+
+**Adaptation Guidelines:**
+    - Modify submit_job.sh for your scheduler (PBS, SGE, etc.)
+    - Update module loading commands in setup scripts
+    - Adjust resource requests (memory, CPU, time) for your queue limits
+    - Verify C extension compilation with your cluster's toolchain
+
+Performance Disclaimer
+----------------------
+
+⚠️  **IMPORTANT:** This implementation is NOT yet optimized for high-performance computing.
+
+**Current Limitations:**
+    - Sequential processing of datasets (no parallelization)
+    - Single-threaded bootstrap iterations
+    - No MPI or distributed computing support
+    - Memory usage not optimized for large-scale analyses
+    - C extensions compiled with basic optimization flags
+
+**Performance Improvements Needed:**
+    - Parallel processing of multiple datasets using MPI or multiprocessing
+    - Vectorized bootstrap iterations with GPU acceleration
+    - Memory-efficient streaming for large datasets
+    - Advanced C compiler optimizations (-O3, -march=native)
+    - Distributed computing across multiple nodes
+    - Asynchronous I/O for HDF5 operations
+
+**Current Status:**
+    This framework provides functional cluster deployment but performance
+    optimizations are planned for future releases. For production runs with
+    thousands of bootstrap iterations or dozens of datasets, expect extended
+    execution times. Consider starting with smaller iteration counts for testing.
+
+Notes
+-----
+No virtual environment needed - using system Python with --user packages.
 """
+
 import sys
 import os
 sys.path.append('..')

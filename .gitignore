@@ -136,7 +136,6 @@ dmypy.json
 !src/raw_data.png
 !src/scattering_analysis.png
 *.dat
-!src/20_06_2025_photoacids_SDS/**/*.dat
 *.csv
 *.edf
 *.sdf
@@ -144,9 +143,16 @@ dmypy.json
 *.cube
 # Keep initial params JSON files
 !src/initial_params.json
-!src/initial_params_all_structure_factors.json
 .vscode/
 .devcontainer/
+
+# Experimental data - excluded from repository
+src/20_06_2025_photoacids_SDS/
+
+# Old/deprecated code - excluded from repository
+old/
+*/old/
+**/old/
 
 # Build artifacts
 build/
@@ -156,3 +162,4 @@ dist/
 # Cluster/HPC specific
 src/cluster/new_bootstrap_data/
 src/cluster/old_data/
+src/cluster/bootstrap_data/

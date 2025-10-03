@@ -1,3 +1,68 @@
+"""
+Core Analysis Utilities for Small-Angle Scattering (SAS)
+
+This is the main analysis module of the ECHEMES bootstrapping framework, providing 
+comprehensive tools for fitting, uncertainty analysis, and visualization of small-angle 
+scattering data using core-shell cylinder models with optional structure factor corrections.
+
+Key Components:
+==============
+
+Scattering Models:
+- Core-shell cylinder form factors with high-performance C implementations
+- Hayter-Penfold MSA structure factors for charged particle interactions  
+- Automatic model selection based on available parameters
+
+Parameter Fitting:
+- Robust non-linear least squares fitting using scipy.optimize
+- Flexible parameter bounds and fitting constraints
+- Support for both form-factor-only and full structure factor fits
+- Multiple optimization algorithms (Levenberg-Marquardt, Trust Region, etc.)
+
+Bootstrap Uncertainty Analysis:
+- Residuals bootstrap resampling for uncertainty quantification
+- Configurable number of bootstrap iterations
+- Automatic confidence interval calculation
+- Progress tracking with tqdm integration
+
+Visualization Tools:
+- Data plotting with customizable styling
+- Fit overlay plots with residuals
+- Batch plotting with automatic file management
+- Publication-ready figure generation
+
+Default Parameters:
+- Pre-configured initial parameters for common SAS measurements
+- Flexible parameter dictionaries for easy customization
+- Built-in parameter validation and bounds checking
+
+Functions Overview:
+==================
+- form_factor(), structure_factor(), intensity() - Core scattering calculations
+- fit_data() - Main parameter fitting function
+- residuals_bootstrap() - Uncertainty analysis via bootstrap resampling  
+- compute_confidence_intervals() - Statistical analysis of bootstrap results
+- plot_data(), plot_fit_data() - Visualization and plotting utilities
+
+Usage:
+======
+This module is designed for both interactive analysis and automated batch processing.
+All functions use keyword argument dictionaries for maximum flexibility and easy 
+integration with different scattering models.
+
+Example:
+    from utils import fit_data, residuals_bootstrap, plot_fit_data
+    
+    # Fit experimental data
+    fitted_params, covariance = fit_data(q_data, I_data)
+    
+    # Quantify uncertainties
+    bootstrap_results = residuals_bootstrap(q_data, I_data, fitted_params)
+    
+    # Visualize results  
+    plot_fit_data(q_data, I_data, fitted_params)
+"""
+
 from core_shell_cylinder.wrapper import compute_form_factor
 from core_shell_cylinder.hayter_msa_wrapper import compute_structure_factor
 from scipy.optimize import curve_fit
@@ -11,18 +76,27 @@ def form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length):
     """
     Compute the form factor for the core-shell cylinder model.
 
-    Parameters:
-    q (float): The scattering vector magnitude.
-    core_sld (float): The scattering length density of the core.
-    shell_sld (float): The scattering length density of the shell.
-    solvent_sld (float): The scattering length density of the solvent.
-    radius (float): The radius of the core.
-    thickness (float): The thickness of the shell.
-    length (float): The length of the cylinder.
+    Parameters
+    ----------
+    q : float
+        The scattering vector magnitude.
+    core_sld : float
+        The scattering length density of the core.
+    shell_sld : float
+        The scattering length density of the shell.
+    solvent_sld : float
+        The scattering length density of the solvent.
+    radius : float
+        The radius of the core.
+    thickness : float
+        The thickness of the shell.
+    length : float
+        The length of the cylinder.
 
-    Returns:
-    float: The integrated computed form factor.
-    float: The integrated computed form factor squared.
+    Returns
+    -------
+    tuple of float
+        The integrated computed form factor (F) and form factor squared (F²).
     """
     return compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
 
@@ -30,67 +104,106 @@ def form_factor_2(q, core_sld, shell_sld, solvent_sld, radius, thickness, length
     """
     Compute the form factor squared for the core-shell cylinder model.
 
-    Parameters:
-    q (float): The scattering vector magnitude.
-    core_sld (float): The scattering length density of the core.
-    shell_sld (float): The scattering length density of the shell.
-    solvent_sld (float): The scattering length density of the solvent.
-    radius (float): The radius of the core.
-    thickness (float): The thickness of the shell.
-    length (float): The length of the cylinder.
-    scale (float): Scale factor for the intensity.
-    background (float): Background intensity.
+    Parameters
+    ----------
+    q : float
+        The scattering vector magnitude.
+    core_sld : float
+        The scattering length density of the core.
+    shell_sld : float
+        The scattering length density of the shell.
+    solvent_sld : float
+        The scattering length density of the solvent.
+    radius : float
+        The radius of the core.
+    thickness : float
+        The thickness of the shell.
+    length : float
+        The length of the cylinder.
+    scale : float
+        Scale factor.
+    background : float
+        Background intensity.
 
-    Returns:
-    float: The integrated computed form factor squared.
+    Returns
+    -------
+    float
+        The intensity I(q) = scale * F² + background.
     """
-    _, F2 = compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
-    return scale * F2 + background
+    return scale * compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)[1] + background
 
 # Vectorized version of the form factor function for fitting (for scipy.optimize.curve_fit) (used when the structure factor is negligible)
 form_factor_for_fitting = np.vectorize(form_factor_2, excluded=['scale', 'background', 'core_sld', 'shell_sld', 'solvent_sld', 'radius', 'thickness', 'length'])
 
 def structure_factor(q, radius_effective, volume_fraction, charge, temperature, salt_concentration, dielectric_constant):
     """
-    Compute the Hayter-Penfold MSA structure factor.
-    
-    Parameters:
-    q (float): Scattering vector (1/Å)
-    radius_effective (float): Effective radius (Å)
-    volume_fraction (float): Volume fraction (dimensionless)
-    charge (float): Particle charge (elementary charges)
-    temperature (float): Temperature (K)
-    salt_concentration (float): Salt concentration (M)
-    dielectric_constant (float): Dielectric constant (dimensionless)
+    Compute the structure factor using the Hayter-Penfold MSA model.
 
-    Returns:
-    float: Structure factor S(q)
+    Parameters
+    ----------
+    q : float
+        The scattering vector magnitude.
+    radius_effective : float
+        Effective radius of the particles.
+    volume_fraction : float
+        Volume fraction of the particles.
+    charge : float
+        Particle charge number.
+    temperature : float
+        Temperature in Kelvin.
+    salt_concentration : float
+        Salt concentration in Molarity.
+    dielectric_constant : float
+        Dielectric constant of the solvent.
+
+    Returns
+    -------
+    float
+        Structure factor S(q).
     """
     return compute_structure_factor(q, radius_effective, volume_fraction, charge, temperature, salt_concentration, dielectric_constant)
 
 def intensity(q, scale, background, core_sld, shell_sld, solvent_sld, radius, thickness, length, radius_effective, vol_frac, zz, temp, csalt, dialec):
     """
-    Compute the total scattering intensity I(q) = F²(q) × S(q).
+    Compute the total scattering intensity including both form factor and structure factor.
 
-    Parameters:
-    q (float): Scattering vector.
-    scale (float): Scale factor for the intensity.
-    background (float): Background intensity.
-    core_sld (float): Core scattering length density.
-    shell_sld (float): Shell scattering length density.
-    solvent_sld (float): Solvent scattering length density.
-    radius (float): Core radius.
-    thickness (float): Shell thickness.
-    length (float): Length of the cylinder.
-    radius_effective (float): Effective radius.
-    vol_frac (float): Volume fraction.
-    zz (float): Particle charge.
-    temp (float): Temperature in Kelvin.
-    csalt (float): Salt concentration in Molarity.
-    dialec (float): Dielectric constant.
+    Parameters
+    ----------
+    q : float
+        The scattering vector magnitude.
+    scale : float
+        Scale factor.
+    background : float
+        Background intensity.
+    core_sld : float
+        The scattering length density of the core.
+    shell_sld : float
+        The scattering length density of the shell.
+    solvent_sld : float
+        The scattering length density of the solvent.
+    radius : float
+        The radius of the core.
+    thickness : float
+        The thickness of the shell.
+    length : float
+        The length of the cylinder.
+    radius_effective : float
+        Effective radius of the particles.
+    vol_frac : float
+        Volume fraction of the particles.
+    zz : float
+        Particle charge number.
+    temp : float
+        Temperature in Kelvin.
+    csalt : float
+        Salt concentration in Molarity.
+    dialec : float
+        Dielectric constant of the solvent.
 
-    Returns:
-    float: Total scattering intensity I(q).
+    Returns
+    -------
+    float
+        Total scattering intensity I(q) = scale * (F² * S(q)) + background.
     """
     _, F2 = compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
     S_q = compute_structure_factor(q, radius_effective, vol_frac, zz, temp, csalt, dialec)
@@ -138,22 +251,42 @@ fit_params = {
 
 def fit_data(x_data, y_data, initial_params=initial_params, fit_params=fit_params, bounds=(-np.inf, np.inf), method='lm', structure_factor=True):
     """
-    x_data (list): Independent variable data.
-    y_data (list): Dependent variable data.
-    initial_params (dict): Initial parameter values for fitting.
-                            Possible keys: 'scale', 'background', 'core_sld', 'shell_sld', 'solvent_sld', 'radius', 'thickness',
-                                  'length', 'radius_effective', 'vol_frac', 'zz', 'temp', 'csalt', 'dialec'.
-    fit_params (dict): Parameters to fit, with True for fitting and False for fixed values.
-                        Should match keys in initial_params.
-    bounds (2-tuple of array-like, optional): Lower and upper bounds for parameters to be fitted.
-    method (str): Fitting method, e.g., 'lm' (uses scipy.optimize.curve_fit). 
-    structure_factor (bool): Whether to include the structure factor in the intensity calculation.
-                                If this is False, the dicts provided above should be updated accordingly.
+    Fit experimental data to the scattering model using non-linear least squares.
 
-    Returns:
-    popt (array): Optimal values for the parameters.
-    pcov (2D array): Covariance of popt.
-    param_order (list): Names of the parameters that were fitted.
+    Parameters
+    ----------
+    x_data : array_like
+        Independent variable data (scattering vector q).
+    y_data : array_like
+        Dependent variable data (intensity I).
+    initial_params : dict, optional
+        Initial parameter values for fitting. Possible keys: 'scale', 'background',
+        'core_sld', 'shell_sld', 'solvent_sld', 'radius', 'thickness', 'length',
+        'radius_effective', 'vol_frac', 'zz', 'temp', 'csalt', 'dialec'.
+        Default is the module-level initial_params.
+    fit_params : dict, optional
+        Dictionary indicating which parameters to fit (True) and which to keep fixed (False).
+        Should match keys in initial_params. Default is the module-level fit_params.
+    bounds : tuple of array_like or dict, optional
+        Lower and upper bounds for parameters to be fitted. Can be a 2-tuple of arrays
+        or a dict mapping parameter names to (lower, upper) tuples.
+        Default is (-np.inf, np.inf).
+    method : str, optional
+        Fitting method for scipy.optimize.curve_fit. Options include 'lm'
+        (Levenberg-Marquardt), 'trf' (Trust Region Reflective), 'dogbox'.
+        Default is 'lm'.
+    structure_factor : bool, optional
+        Whether to include the structure factor in the intensity calculation.
+        If False, only form factor is used. Default is True.
+
+    Returns
+    -------
+    popt : ndarray
+        Optimal values for the fitted parameters.
+    pcov : ndarray
+        Covariance matrix of popt. The diagonals provide variance of parameter estimates.
+    param_order : list of str
+        Names of the parameters that were fitted, in the order they appear in popt.
     """
 
     param_order = [name for name in fit_params.keys() if fit_params[name]] # Get the order of parameters to fit (and their names)
@@ -199,14 +332,25 @@ def fit_data(x_data, y_data, initial_params=initial_params, fit_params=fit_param
 
 def plot_data(xdata, ydata, title="Data Plot", xlabel="q", ylabel="Intensity"):
     """
-    Plot the data points.
+    Plot experimental data points.
 
-    Parameters:
-    xdata (array): Independent variable data.
-    ydata (array): Dependent variable data.
-    title (str): Title of the plot.
-    xlabel (str): Label for the x-axis.
-    ylabel (str): Label for the y-axis.
+    Parameters
+    ----------
+    xdata : array_like
+        Independent variable data (typically scattering vector q).
+    ydata : array_like
+        Dependent variable data (typically intensity I).
+    title : str, optional
+        Title of the plot. Default is "Data Plot".
+    xlabel : str, optional
+        Label for the x-axis. Default is "q".
+    ylabel : str, optional
+        Label for the y-axis. Default is "Intensity".
+
+    Returns
+    -------
+    None
+        Saves plot as PNG file with filename derived from title.
     """
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -223,18 +367,34 @@ def plot_data(xdata, ydata, title="Data Plot", xlabel="q", ylabel="Intensity"):
 
 def plot_fit_data(xdata, ydata, params, title="Fit Data", xlabel="q", ylabel="Intensity", folder=None, structure_factor=True):
     """
-    Plot the fit data along with the fitted curve.
+    Plot experimental data along with the fitted model curve.
 
-    Parameters:
-    xdata (array): Independent variable data.
-    ydata (array): Dependent variable data.
-    params (dict): Fitted parameters for the intensity function.
-    title (str): Title of the plot.
-    xlabel (str): Label for the x-axis.
-    ylabel (str): Label for the y-axis.
-    folder (str): Folder to save the plot.
-    structure_factor (bool): Whether to include the structure factor in the intensity calculation.
-                                If this is False, params should be updated accordingly.
+    Parameters
+    ----------
+    xdata : array_like
+        Independent variable data (typically scattering vector q).
+    ydata : array_like
+        Dependent variable data (typically intensity I).
+    params : dict
+        Dictionary of fitted parameters for the intensity function.
+        Should contain all necessary parameters for the chosen model.
+    title : str, optional
+        Title of the plot. Default is "Fit Data".
+    xlabel : str, optional
+        Label for the x-axis. Default is "q".
+    ylabel : str, optional
+        Label for the y-axis. Default is "Intensity".
+    folder : str, optional
+        Folder path to save the plot. If None, saves to current working directory.
+        Default is None.
+    structure_factor : bool, optional
+        Whether to include the structure factor in the intensity calculation.
+        If False, only form factor is used. Default is True.
+
+    Returns
+    -------
+    None
+        Saves plot as PNG file in the specified folder.
     """
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -260,23 +420,51 @@ def plot_fit_data(xdata, ydata, params, title="Fit Data", xlabel="q", ylabel="In
 
 def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fit_params, n_iterations=1000, bounds=(-np.inf, np.inf), store=None, method="lm", structure_factor=True):
     """
-    Compute residuals for each bootstrap sample.
+    Perform residuals bootstrap resampling to quantify parameter uncertainties.
 
-    Parameters:
-    x_data (array): Independent variable data.
-    y_data (array): Dependent variable data.
-    all_params (dict): Initial parameter values (including the fitted ones from the original fit) for fitting.
-                        This should have the same keys as fit_params and work with the intensity function.
-    fit_params (dict): Parameters to fit.
-    n_iterations (int): Number of bootstrap iterations.
-    bounds (2-tuple of array-like, optional): Lower and upper bounds for parameters to be fitted.
-    store (pd.HDFStore): HDF5 store to save the bootstrap samples.
-    method (str): Fitting method, e.g., 'lm' (uses scipy.optimize.curve_fit).
-    structure_factor (bool): Whether to include the structure factor in the intensity calculation.
-                                If this is False, the provided dicts should be updated accordingly.
+    This function implements the residuals bootstrap method for uncertainty quantification.
+    It resamples residuals from the initial fit, creates synthetic datasets, refits each
+    synthetic dataset, and stores the results for confidence interval calculation.
 
-    Returns:
-    list: List of residuals for each bootstrap sample.
+    Parameters
+    ----------
+    x_data : array_like
+        Independent variable data (scattering vector q).
+    y_data : array_like
+        Dependent variable data (intensity I).
+    all_params : dict, optional
+        Parameter values including fitted parameters from the original fit.
+        Should have the same keys as fit_params and work with the intensity function.
+        Default is the module-level initial_params.
+    fit_params : dict, optional
+        Dictionary indicating which parameters to fit (True) and which to keep fixed (False).
+        Default is the module-level fit_params.
+    n_iterations : int, optional
+        Number of bootstrap iterations to perform. Default is 1000.
+    bounds : tuple of array_like or dict, optional
+        Lower and upper bounds for parameters to be fitted.
+        Default is (-np.inf, np.inf).
+    store : pd.HDFStore, optional
+        HDF5 store object to save bootstrap samples. If provided, stores residuals,
+        synthetic_y data, and fitted_params for each iteration. Default is None.
+    method : str, optional
+        Fitting method for scipy.optimize.curve_fit. Options include 'lm'
+        (Levenberg-Marquardt), 'trf' (Trust Region Reflective).
+        Default is "lm".
+    structure_factor : bool, optional
+        Whether to include the structure factor in the intensity calculation.
+        If False, only form factor is used. Default is True.
+
+    Returns
+    -------
+    list of dict
+        List of parameter dictionaries, one for each bootstrap iteration.
+        Each dictionary contains all parameters (fitted and fixed) for that iteration.
+
+    Notes
+    -----
+    Progress is displayed using tqdm with time estimates. Every 25 iterations,
+    elapsed and estimated remaining time is printed.
     """
 
     if type(y_data) is not np.ndarray:
@@ -330,15 +518,31 @@ def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fi
 
 def compute_confidence_intervals(fitted_params, confidence_level=0.05):
     """
-    Compute confidence intervals for the fitted parameters from bootstrap samples.
-    The interval will be given as follows: [p*^(lower(B * \alpha/2)), p*^(upper(B * (1 - \alpha/2)))].
-    B stands for the number of bootstrap samples.
-    Parameters:
-    fitted_params (list): List of dictionaries of fitted parameters from bootstrap samples. It is expected that each dictionary has the same keys.
-    confidence_level (float): Confidence level for the intervals (default is 0.05 for 95% confidence).
+    Compute confidence intervals from bootstrap parameter distributions.
 
-    Returns:
-    dict: Lower and upper bounds of the confidence intervals for each parameter as tuples.
+    Calculates percentile-based confidence intervals from bootstrap samples using the
+    formula: [p*(B·α/2), p*(B·(1-α/2))], where B is the number of bootstrap samples
+    and α is the confidence level.
+
+    Parameters
+    ----------
+    fitted_params : list of dict
+        List of parameter dictionaries from bootstrap samples.
+        Each dictionary should have the same keys representing parameter names.
+    confidence_level : float, optional
+        Significance level for the confidence intervals. For example, 0.05 gives
+        95% confidence intervals (2.5th to 97.5th percentiles). Default is 0.05.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping parameter names to (lower_bound, upper_bound) tuples.
+        Bounds are computed using the 'nearest' percentile method.
+
+    Notes
+    -----
+    The confidence intervals are calculated using numpy.percentile with method='nearest',
+    which selects the closest data point rather than interpolating.
     """
     
     dict_of_lists = {key: np.array([d[key] for d in fitted_params]) for key in fitted_params[0].keys()}
