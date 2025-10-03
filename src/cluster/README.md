@@ -20,6 +20,44 @@ Optimized for high-throughput bootstrap analysis of small-angle scattering data.
 
 **Note:** The `old/` directory contains deprecated files and is excluded from transfers.
 
+## Data Structure Requirements
+
+**CRITICAL:** Before running the analysis, ensure your data follows this structure:
+
+### Required Directory Layout:
+```
+DATASET_FOLDER/                    # Main folder
+  ├── sample1/                     # Subfolder for each dataset
+  │   └── sample1_IDENTIFIER.dat
+  ├── sample2/
+  │   └── sample2_IDENTIFIER.dat
+  └── sample3/
+      └── sample3_IDENTIFIER.dat
+```
+
+### File Requirements:
+- **File Extension:** All data files MUST be `.dat` files
+- **File Format:** Whitespace-separated columns with headers (typically: `q`, `I`, `dI`)
+- **Naming Convention:** `{sample_name}_{REL_FILE_IDENTIFIER}.dat`
+- **Organization:** Each sample must have its own subfolder named after the sample
+
+### Configuration in process_data.py:
+
+Edit these global variables at the top of `process_data.py`:
+
+```python
+# Main dataset folder containing subfolders for each sample
+DATASET_FOLDER = "FOLDER"
+
+# File identifier suffix (must be .dat files)
+REL_FILE_IDENTIFIER = "IDENTIFIER"
+```
+
+**Example:** If your sample is named `P_5_S_50_high` and your `REL_FILE_IDENTIFIER` is `avg_filtered_subtracted_simple`, the script will look for:
+```
+../20_06_2025_photoacids_SDS/P_5_S_50_high/P_5_S_50_high_0_00000_avg_filtered_subtracted_simple.dat
+```
+
 ## Quick Start Workflow
 
 ### 1. Initial Setup
@@ -27,6 +65,10 @@ Optimized for high-throughput bootstrap analysis of small-angle scattering data.
 # Edit transfer.sh with your NetHz credentials
 nano transfer.sh
 # Set: CLUSTER_USER="your_nethz"
+
+# Configure data paths in process_data.py
+nano process_data.py
+# Set: DATASET_FOLDER and REL_FILE_IDENTIFIER
 ```
 
 ### 2. Upload and Submit Job

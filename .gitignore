@@ -8,6 +8,12 @@ __pycache__/
 *.dll
 *.dylib
 
+# Compiled executables and object files
+*.o
+*.out
+src/core_shell_cylinder/core_shell_cylinder
+src/core_shell_cylinder/hayter_msa
+
 # Distribution / packaging
 .Python
 build/
