@@ -479,7 +479,8 @@ def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fi
         fitted_y = form_factor_for_fitting(x_data, **all_params)
     residuals = y_data - fitted_y
 
-    store.put('residuals', pd.Series(residuals))
+    if store is not None:
+        store.put('residuals', pd.Series(residuals))
 
     import time
     start_time = time.time()
@@ -501,13 +502,15 @@ def residuals_bootstrap(x_data, y_data, all_params=initial_params, fit_params=fi
         resampled = np.random.choice(residuals, size=len(residuals), replace=True)  # Randomly sample residuals with replacement for bootstrapping
         synthetic_y = y_data + resampled
 
-        store.put(f'synthetic_y/s{str(i)}', pd.Series(synthetic_y))
+        if store is not None:
+            store.put(f'synthetic_y/s{str(i)}', pd.Series(synthetic_y))
 
         new_fitted_params, _, param_order = fit_data(x_data, synthetic_y, all_params, fit_params, bounds=bounds, method=method, structure_factor=structure_factor)
         
         new_fitted_params = dict(zip(param_order, new_fitted_params))
 
-        store.put(f'fitted_params/s{str(i)}', pd.Series(new_fitted_params))
+        if store is not None:
+            store.put(f'fitted_params/s{str(i)}', pd.Series(new_fitted_params))
 
         # Plot the fit for the first few iterations to visualize the fitting process:
         #plot_fit_data(x_data, synthetic_y, {key: new_fitted_params[key] if fit_params[key] else all_params[key] for key in all_params.keys()}, title=f"Bootstrap Fit Iteration {i+1}", xlabel="q", ylabel="Intensity", folder=f"bootstrap_fit_plotting") # TODO: Could be updated to include the structure_factor (bool) argument
