@@ -152,10 +152,8 @@ print(f"Total Intensity I(q): {I_q:.4f}")
 
 ```python
 from src.utils import fit_data, residuals_bootstrap, plot_fit_data, compute_confidence_intervals
-from src.data import load_data
 import numpy as np
 
-# Load experimental data (implement load_data in data.py or load manually)
 q_exp = np.loadtxt('path/to/data.dat', usecols=0)  # q values
 I_exp = np.loadtxt('path/to/data.dat', usecols=1)  # intensity values
 # sigma_exp = np.loadtxt('path/to/data.dat', usecols=2)  # error bars (if available)
