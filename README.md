@@ -189,17 +189,21 @@ fit_params = {
 }
 
 # Fit parameters to experimental data
-fitted_params, covariance = fit_data(q_exp, I_exp, initial_params, fit_params)
+fitted_params, covariance, param_order = fit_data(q_exp, I_exp, initial_params, fit_params)
+
+# Convert the returned fitted params to a dict
+first_params = {key: fitted_params[i] for i, key in enumerate([k for k in fit_params.keys() if fit_params[k]])}
+first_params.update({key: initial_params[key] for key in initial_params.keys() if key not in fit_params or not fit_params[key]})
 
 # Perform residuals bootstrap uncertainty analysis
-bootstrap_results = residuals_bootstrap(q_exp, I_exp, fitted_params, fit_params, 
+bootstrap_results = residuals_bootstrap(q_exp, I_exp, first_params, fit_params, 
                                        n_iterations=1000)
 
 # Compute confidence intervals
 confidence_intervals = compute_confidence_intervals(bootstrap_results)
 
 # Visualize results
-plot_fit_data(q_exp, I_exp, fitted_params, title="Fitted Data", 
+plot_fit_data(q_exp, I_exp, first_params, title="Fitted Data", 
               folder="./results")
 
 print("Fitted parameters:", fitted_params)
