@@ -88,6 +88,9 @@ pip install -r requirements.txt
 ### 5. Build and Install C Extensions
 
 ```bash
+# Ensure setuptools and build tools are up to date
+pip install --upgrade setuptools pip wheel
+
 # Build C extensions in-place
 python setup.py build_ext --inplace
 
