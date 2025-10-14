@@ -3,7 +3,7 @@ from setuptools import setup, Extension, find_packages
 
 # Define the core-shell cylinder C extension module
 core_shell_cylinder_module = Extension(
-    'core_shell_cylinder',
+    'core_shell_cylinder.core_shell_cylinder',
     sources=[
         'src/core_shell_cylinder/core_shell_cylinder.c',
         'src/core_shell_cylinder/gauss76.c',
@@ -16,7 +16,7 @@ core_shell_cylinder_module = Extension(
 
 # Define the Hayter-MSA C extension module
 hayter_msa_module = Extension(
-    'hayter_msa',
+    'core_shell_cylinder.hayter_msa',
     sources=[
         'src/core_shell_cylinder/hayter_msa.c',
         'src/core_shell_cylinder/utils.c'

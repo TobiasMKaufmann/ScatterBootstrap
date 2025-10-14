@@ -1,7 +1,38 @@
 import ctypes
 import os
+import sys
 
-lib_path = os.path.join(os.path.dirname(__file__), 'hayter_msa.so')
+def find_library(base_name):
+    """Find the compiled library file, handling platform-specific naming."""
+    import glob
+    current_dir = os.path.dirname(__file__)
+    
+    # Try exact names first
+    if sys.platform == 'win32':
+        exact_name = f'{base_name}.pyd'
+    else:
+        exact_name = f'{base_name}.so'
+    
+    exact_path = os.path.join(current_dir, exact_name)
+    if os.path.exists(exact_path):
+        return exact_path
+    
+    # If exact name doesn't exist, search for platform-specific names
+    # Pattern: base_name.cpython-*-(platform).so/pyd
+    pattern = os.path.join(current_dir, f'{base_name}.cpython-*')
+    matches = glob.glob(pattern)
+    
+    if matches:
+        return matches[0]  # Return the first match
+    
+    # If still not found, raise informative error
+    raise FileNotFoundError(
+        f"Could not find compiled library '{base_name}' in {current_dir}. "
+        f"Expected '{exact_name}' or platform-specific variant. "
+        f"Make sure to run 'pip install -e .' or 'python setup.py build_ext --inplace' first."
+    )
+
+lib_path = find_library('hayter_msa')
 lib = ctypes.CDLL(lib_path)
 
 
