@@ -19,12 +19,18 @@ def find_library(base_name):
         return exact_path
     
     # If exact name doesn't exist, search for platform-specific names
-    # Pattern: base_name.cpython-*-(platform).so/pyd
-    pattern = os.path.join(current_dir, f'{base_name}.cpython-*')
-    matches = glob.glob(pattern)
+    # Pattern: base_name.cp###-platform.so/pyd or base_name.cpython-##-platform.so/pyd
+    patterns = [
+        os.path.join(current_dir, f'{base_name}.cp*'),      # Matches .cp311-win_amd64.pyd
+        os.path.join(current_dir, f'{base_name}.cpython-*'), # Matches .cpython-311-x86_64-linux-gnu.so
+    ]
     
-    if matches:
-        return matches[0]  # Return the first match
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        # Filter out exact match (already checked) and only keep platform-specific names
+        matches = [m for m in matches if not m.endswith(exact_name)]
+        if matches:
+            return matches[0]  # Return the first match
     
     # If still not found, raise informative error
     raise FileNotFoundError(
