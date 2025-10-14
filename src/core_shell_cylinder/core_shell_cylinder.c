@@ -111,11 +111,3 @@ double Iqac(double qab, double qc, double core_sld, double shell_sld, double sol
     const double fq = _cyl(core_vd, core_r * qab, core_h * qc) + _cyl(shell_vd, shell_r * qab, shell_h * qc);
     return 1.0e-4 * fq * fq;
 }
-
-int main() {
-    double F1, F2;
-    Fq(0.1, &F1, &F2, 6, 10, 7, 14.3, 6, 38);
-
-    printf("F1: %g, F2: %g\n", F1, F2);
-    return 0;
-}
