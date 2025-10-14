@@ -98,6 +98,10 @@ case "$1" in
             cd ../..
             rsync -avz --exclude='*.h5' --exclude='__pycache__' --exclude='*.png' --exclude='*.tar.gz' \
                 --exclude='old/' --exclude='*/old/' --exclude='.git/' --exclude='*.so' \
+                --exclude='venv/' --exclude='env/' --exclude='.venv/' \
+                --exclude='site-packages/' --exclude='*/site-packages/' \
+                --exclude='*/test_*.py' --exclude='test_*.py' \
+                --exclude='*/tests/' --exclude='tests/' \
                 . ${CLUSTER_USER}@${CLUSTER_HOST}:${REMOTE_DIR}/
             cd - > /dev/null
         else
@@ -118,9 +122,12 @@ case "$1" in
             find ${TEMP_DIR} -name "*.so" -delete
             find ${TEMP_DIR} -name "old" -type d -exec rm -rf {} + 2>/dev/null || true
             find ${TEMP_DIR} -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
-            find ${TEMP_DIR} -name "*.so" -delete
-            find ${TEMP_DIR} -name "old" -type d -exec rm -rf {} + 2>/dev/null || true
-            find ${TEMP_DIR} -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "venv" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "env" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name ".venv" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "site-packages" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "test_*.py" -delete
+            find ${TEMP_DIR} -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
             # Transfer the entire project structure
             scp -r ${TEMP_DIR}/project/* ${CLUSTER_USER}@${CLUSTER_HOST}:${REMOTE_DIR}/
             # Clean up
@@ -144,6 +151,11 @@ case "$1" in
             # Go up two levels to transfer the entire project structure
             cd ../..
             rsync -avz --exclude='*.h5' --exclude='__pycache__' --exclude='*.png' --exclude='*.tar.gz' \
+                --exclude='old/' --exclude='*/old/' --exclude='.git/' \
+                --exclude='venv/' --exclude='env/' --exclude='.venv/' \
+                --exclude='site-packages/' --exclude='*/site-packages/' \
+                --exclude='*/test_*.py' --exclude='test_*.py' \
+                --exclude='*/tests/' --exclude='tests/' \
                 . ${CLUSTER_USER}@${CLUSTER_HOST}:${REMOTE_DIR}/
             cd - > /dev/null
         else
@@ -161,6 +173,14 @@ case "$1" in
             find ${TEMP_DIR} -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
             find ${TEMP_DIR} -name "*.pyc" -delete
             find ${TEMP_DIR} -name "*.tar.gz" -delete
+            find ${TEMP_DIR} -name "old" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "venv" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "env" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name ".venv" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "site-packages" -type d -exec rm -rf {} + 2>/dev/null || true
+            find ${TEMP_DIR} -name "test_*.py" -delete
+            find ${TEMP_DIR} -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
             # Transfer the entire project structure
             scp -r ${TEMP_DIR}/project/* ${CLUSTER_USER}@${CLUSTER_HOST}:${REMOTE_DIR}/
             # Clean up
