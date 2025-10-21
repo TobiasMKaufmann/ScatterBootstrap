@@ -2,61 +2,44 @@ import ctypes
 import os
 import sys
 
+
+# TODO: Too permissive at the moment
 def find_library(base_name):
     """Find the compiled library file, handling platform-specific naming.
     
-    Supports various naming conventions:
-    - Simple: module.so, module.pyd
-    - Python version: module.cp312.so, module.cp311-win_amd64.pyd
-    - Full platform: module.cpython-312-x86_64-linux-gnu.so
-    - macOS: module.cpython-312-darwin.so
-    - Legacy: module.dll
+    Searches for library files with various extensions (.so, .pyd, .dll) and
+    naming patterns (simple names and platform-specific setuptools names).
     """
     import glob
     current_dir = os.path.dirname(__file__)
     
-    # Try exact names first (preferred for custom builds)
+    # Build list of all possible patterns to search, in priority order
+    # Windows: .pyd and .dll extensions
+    # Linux/Mac: .so extension
+    extension_patterns = []
     if sys.platform == 'win32':
-        exact_names = [f'{base_name}.pyd', f'{base_name}.dll']
+        extension_patterns = ['pyd', 'dll']
     else:
-        exact_names = [f'{base_name}.so']
+        extension_patterns = ['so']
     
-    for exact_name in exact_names:
-        exact_path = os.path.join(current_dir, exact_name)
-        if os.path.exists(exact_path):
-            return exact_path
+    # Collect all candidate files
+    candidates = []
+    for ext in extension_patterns:
+        # Pattern matches: any file containing base_name with the correct extension
+        pattern = os.path.join(current_dir, f'*{base_name}*.{ext}')
+        candidates.extend(glob.glob(pattern))
     
-    # If exact name doesn't exist, search for platform-specific names
-    # These patterns cover all common setuptools/distutils naming conventions
-    patterns = [
-        # Python version + platform (Windows): module.cp312-win_amd64.pyd
-        os.path.join(current_dir, f'{base_name}.cp*-*.pyd'),
-        # Python version only (Windows): module.cp312.pyd
-        os.path.join(current_dir, f'{base_name}.cp*.pyd'),
-        # Full cpython naming (Linux/Mac): module.cpython-312-x86_64-linux-gnu.so
-        os.path.join(current_dir, f'{base_name}.cpython-*-*.so'),
-        # Python version + platform (Linux/Mac): module.cp312-linux_x86_64.so
-        os.path.join(current_dir, f'{base_name}.cp*-*.so'),
-        # Python version only (Linux/Mac): module.cp312.so
-        os.path.join(current_dir, f'{base_name}.cp*.so'),
-        # Any .so file starting with base_name (catch-all for Unix)
-        os.path.join(current_dir, f'{base_name}.*.so'),
-        # Any .pyd file starting with base_name (catch-all for Windows)
-        os.path.join(current_dir, f'{base_name}.*.pyd'),
-    ]
+    # Sort by filename length (prefer simpler names)
+    candidates.sort(key=lambda x: len(os.path.basename(x)))
     
-    for pattern in patterns:
-        matches = glob.glob(pattern)
-        if matches:
-            # Sort to prefer shorter names (more specific Python versions come first)
-            matches.sort(key=lambda x: len(os.path.basename(x)))
-            return matches[0]
+    # Return the first match or raise error
+    if candidates:
+        return candidates[0]
     
-    # If still not found, raise informative error with searched patterns
     raise FileNotFoundError(
         f"Could not find compiled library '{base_name}' in {current_dir}.\n"
-        f"Searched for patterns: {exact_names[0]}, {base_name}.cp*.so/pyd, {base_name}.cpython-*.so/pyd\n"
-        f"Make sure to run 'pip install -e .' or 'python setup.py build_ext --inplace' first."
+        f"Expected files like: {base_name}.so, {base_name}.pyd, or platform-specific variants.\n"
+        f"Make sure to run 'pip install -e .' or 'python setup.py build_py' first."
     )
 
 lib_path = find_library('hayter_msa')
