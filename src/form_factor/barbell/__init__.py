@@ -1,0 +1,1 @@
+"""Barbell form factor model."""

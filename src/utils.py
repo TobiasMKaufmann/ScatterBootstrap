@@ -63,79 +63,106 @@ Example:
     plot_fit_data(q_data, I_data, fitted_params)
 """
 
-from core_shell_cylinder.wrapper import compute_form_factor
-from core_shell_cylinder.hayter_msa_wrapper import compute_structure_factor
-from scipy.optimize import curve_fit
+import os
+import sys
+import importlib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import os
+from scipy.optimize import curve_fit
 
-def form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length):
+# ==================== MODEL CONFIGURATION ====================
+# Define the models to use for form factor and structure factor
+# These should match directory names in src/form_factor/ and src/structure_factor/
+# NOTE: Onion and core_multi_shell form factor are not fully supported yet with all features.
+FORM_FACTOR_MODEL = "barbell"
+STRUCTURE_FACTOR_MODEL = "hayter_msa"
+
+# NOTE: Adjust the vectorized functions and model relevant parameters below!
+
+# ==================== DYNAMIC MODEL LOADING ====================
+def _load_models():
     """
-    Compute the form factor for the core-shell cylinder model.
+    Dynamically load form factor and structure factor models based on configuration.
+    
+    Returns
+    -------
+    tuple
+        (form_factor_module, structure_factor_module) containing the loaded wrapper modules
+    """
+    # Load form factor model
+    form_factor_path = f"form_factor.{FORM_FACTOR_MODEL}.wrapper"
+    try:
+        form_factor_module = importlib.import_module(form_factor_path)
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to import form factor model '{FORM_FACTOR_MODEL}' from '{form_factor_path}'. "
+            f"Ensure the model exists in src/form_factor/{FORM_FACTOR_MODEL}/wrapper.py. "
+            f"Error: {e}"
+        )
+    
+    # Load structure factor model
+    structure_factor_path = f"structure_factor.{STRUCTURE_FACTOR_MODEL}.wrapper"
+    try:
+        structure_factor_module = importlib.import_module(structure_factor_path)
+    except ImportError as e:
+        raise ImportError(
+            f"Failed to import structure factor model '{STRUCTURE_FACTOR_MODEL}' from '{structure_factor_path}'. "
+            f"Ensure the model exists in src/structure_factor/{STRUCTURE_FACTOR_MODEL}/wrapper.py. "
+            f"Error: {e}"
+        )
+    
+    return form_factor_module, structure_factor_module
+
+# Load the models
+_form_factor_module, _structure_factor_module = _load_models()
+
+# Extract the compute functions from the loaded modules
+compute_form_factor = _form_factor_module.compute_form_factor
+compute_structure_factor = _structure_factor_module.compute_structure_factor
+
+def form_factor(q, **kwargs):
+    """
+    Compute the form factor for the FORM_FACTOR_MODEL model.
 
     Parameters
     ----------
     q : float
         The scattering vector magnitude.
-    core_sld : float
-        The scattering length density of the core.
-    shell_sld : float
-        The scattering length density of the shell.
-    solvent_sld : float
-        The scattering length density of the solvent.
-    radius : float
-        The radius of the core.
-    thickness : float
-        The thickness of the shell.
-    length : float
-        The length of the cylinder.
+    **kwargs : dict
+        Additional keyword arguments for model parameters.
 
     Returns
     -------
     tuple of float
         The integrated computed form factor (F) and form factor squared (F²).
     """
-    return compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
+    return compute_form_factor(q, **kwargs)
 
-def form_factor_2(q, core_sld, shell_sld, solvent_sld, radius, thickness, length, scale, background):
+def form_factor_2(q, scale, background, **kwargs):
     """
-    Compute the form factor squared for the core-shell cylinder model.
+    Compute the form factor squared for the FORM_FACTOR_MODEL model.
 
     Parameters
     ----------
     q : float
         The scattering vector magnitude.
-    core_sld : float
-        The scattering length density of the core.
-    shell_sld : float
-        The scattering length density of the shell.
-    solvent_sld : float
-        The scattering length density of the solvent.
-    radius : float
-        The radius of the core.
-    thickness : float
-        The thickness of the shell.
-    length : float
-        The length of the cylinder.
     scale : float
         Scale factor.
     background : float
         Background intensity.
+    **kwargs : dict
+        Additional keyword arguments for model parameters.
 
     Returns
     -------
     float
         The intensity I(q) = scale * F² + background.
     """
-    return scale * compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)[1] + background
+    return scale * compute_form_factor(q, **kwargs) + background
 
-# Vectorized version of the form factor function for fitting (for scipy.optimize.curve_fit) (used when the structure factor is negligible)
-form_factor_for_fitting = np.vectorize(form_factor_2, excluded=['scale', 'background', 'core_sld', 'shell_sld', 'solvent_sld', 'radius', 'thickness', 'length'])
-
-def structure_factor(q, radius_effective, volume_fraction, charge, temperature, salt_concentration, dielectric_constant):
+def structure_factor(q, **kwargs):
     """
     Compute the structure factor using the Hayter-Penfold MSA model.
 
@@ -143,27 +170,17 @@ def structure_factor(q, radius_effective, volume_fraction, charge, temperature, 
     ----------
     q : float
         The scattering vector magnitude.
-    radius_effective : float
-        Effective radius of the particles.
-    volume_fraction : float
-        Volume fraction of the particles.
-    charge : float
-        Particle charge number.
-    temperature : float
-        Temperature in Kelvin.
-    salt_concentration : float
-        Salt concentration in Molarity.
-    dielectric_constant : float
-        Dielectric constant of the solvent.
+    **kwargs : dict
+        Additional keyword arguments for model parameters.
 
     Returns
     -------
     float
-        Structure factor S(q).
+        The structure factor S(q).
     """
-    return compute_structure_factor(q, radius_effective, volume_fraction, charge, temperature, salt_concentration, dielectric_constant)
+    return compute_structure_factor(q, **kwargs)
 
-def intensity(q, scale, background, core_sld, shell_sld, solvent_sld, radius, thickness, length, radius_effective, vol_frac, zz, temp, csalt, dialec):
+def intensity(q, scale, background, **kwargs):
     """
     Compute the total scattering intensity including both form factor and structure factor.
 
@@ -175,78 +192,62 @@ def intensity(q, scale, background, core_sld, shell_sld, solvent_sld, radius, th
         Scale factor.
     background : float
         Background intensity.
-    core_sld : float
-        The scattering length density of the core.
-    shell_sld : float
-        The scattering length density of the shell.
-    solvent_sld : float
-        The scattering length density of the solvent.
-    radius : float
-        The radius of the core.
-    thickness : float
-        The thickness of the shell.
-    length : float
-        The length of the cylinder.
-    radius_effective : float
-        Effective radius of the particles.
-    vol_frac : float
-        Volume fraction of the particles.
-    zz : float
-        Particle charge number.
-    temp : float
-        Temperature in Kelvin.
-    csalt : float
-        Salt concentration in Molarity.
-    dialec : float
-        Dielectric constant of the solvent.
+    **kwargs : dict
+        Additional keyword arguments for model parameters.
 
     Returns
     -------
     float
         Total scattering intensity I(q) = scale * (F² * S(q)) + background.
     """
-    _, F2 = compute_form_factor(q, core_sld, shell_sld, solvent_sld, radius, thickness, length)
-    S_q = compute_structure_factor(q, radius_effective, vol_frac, zz, temp, csalt, dialec)
+    F2 = compute_form_factor(q, **kwargs)
+    S_q = compute_structure_factor(q, **kwargs)
 
     return scale * (F2 * S_q) + background
 
 
+# ==================== FITTING METHOD SPECIFICATIONS ====================
+
+# NOTE: Adjust the vectorized functions and dicts below:
+# Example: Onion form factor with Hayter-Penfold MSA structure factor
+
+# Vectorized version of the form factor function for fitting (for scipy.optimize.curve_fit) (used when the structure factor is negligible)
+form_factor_for_fitting = np.vectorize(form_factor_2, excluded=['scale', 'background', 'sld', 'solvent_sld', 'radius_bell', 'radius', 'length'])
+
 # Vectorized version of the intensity function for fitting (for scipy.optimize.curve_fit)
-intensity_for_fitting = np.vectorize(intensity, excluded=['scale', 'background', 'core_sld', 'shell_sld', 'solvent_sld', 'radius', 'thickness', 'length',
-                                                         'radius_effective', 'vol_frac', 'zz', 'temp', 'csalt', 'dialec'])
+intensity_for_fitting = np.vectorize(intensity, excluded=['scale', 'background', 'sld', 'solvent_sld', 'radius_bell', 'radius', 'length',
+                                                         'radius_effective', 'volfraction', 'charge', 'temperature', 'saltconc', 'dielectconst'])
 
 initial_params = {
     "scale": 1,
     "background": 0.001,
-    "core_sld": 7.7,
-    "shell_sld": 10.989,
-    "solvent_sld": 9.4,
-    "radius": 13.84,
-    "thickness": 6.60,
-    "length": 35.21,
+    "sld": 4.0e-6,
+    "solvent_sld": 1.0e-6,
+    "radius_bell": 20.0,
+    "radius": 10.0,
+    "length": 50.0,
     "radius_effective": 24.8,
-    "vol_frac": 0.16363,
-    "zz": 28.288,
-    "temp": 300,
-    "csalt": 0.093723,
-    "dialec": 78.3
+    "volfraction": 0.16363,
+    "charge": 28.288,
+    "temperature": 300,
+    "saltconc": 0.093723,
+    "dielectconst": 78.3
 }
 
 fit_params = {
     "scale": True,
     "background": True,
-    "core_sld": False,
-    "shell_sld": False,
+    "sld": True, # Do
     "solvent_sld": False,
+    "radius_bell": True, # Do
     "radius": True, # Do
-    "thickness": True, # Do
     "length": True, # Do
     "radius_effective": True, # Do
-    "vol_frac": True, # Do
-    "zz": True, # Do
-    "temp": False,
-    "csalt": True, # Do
-    "dialec": False
+    "volfraction": True, # Do
+    "charge": True, # Do
+    "temperature": False,
+    "saltconc": True, # Do
+    "dielectconst": False
 }
 
 def fit_data(x_data, y_data, initial_params=initial_params, fit_params=fit_params, bounds=(-np.inf, np.inf), method='lm', structure_factor=True):
@@ -289,18 +290,90 @@ def fit_data(x_data, y_data, initial_params=initial_params, fit_params=fit_param
         Names of the parameters that were fitted, in the order they appear in popt.
     """
 
-    param_order = [name for name in fit_params.keys() if fit_params[name]] # Get the order of parameters to fit (and their names)
-    
-    if type(bounds) is dict:
-        lower_bounds = [bounds[name][0] for name in param_order]
-        upper_bounds = [bounds[name][1] for name in param_order]
-        bounds = (lower_bounds, upper_bounds)
+    if not any(isinstance(x, (np.ndarray, list, tuple)) for x in t):
+        param_order = [name for name in fit_params.keys() if fit_params[name]] # Get the order of parameters to fit (and their names)
+        mask = [0] * len(param_order)
+        if type(bounds) is dict:
+            lower_bounds = [bounds[name][0] for name in param_order]
+            upper_bounds = [bounds[name][1] for name in param_order]
+            bounds = (lower_bounds, upper_bounds)
+
+        def f(q, *fitting):
+            if structure_factor:
+                return intensity_for_fitting(q, 
+                                **{name: fitting[param_order.index(name)] for name in param_order},
+                                **{name: initial_params[name] for name in initial_params if name not in param_order})
+            else:
+                return form_factor_for_fitting(q, 
+                                **{name: fitting[param_order.index(name)] for name in param_order},
+                                **{name: initial_params[name] for name in initial_params if name not in param_order})
+    else:
+        param_order = []
+        new_initial_params = {}
+
+        mask = [] # For the function f below to know where the lists were flattened
+
+        with_bounds = False
+
+        if type(bounds) is dict:
+            with_bounds = True
+            lower_bounds = []
+            upper_bounds = []
+
+        for v, x in fit_params.items():
+            if isinstance(x, (list, tuple, np.ndarray)):
+                mask.append(-1)
+                for i in range(len(x)):
+                    if x[i]:
+                        param_order.append(f"{v}_{i}")
+                        new_initial_params[f"{v}_{i}"] = initial_params[v][i]
+                    if with_bounds:
+                        lower_bounds.append(bounds[v][i][0])
+                        upper_bounds.append(bounds[v][i][1])
+
+                    mask.append(1) if x[i] else None
+
+            else:
+                param_order.append(v) if x else None
+                new_initial_params[v] = initial_params[v]
+                mask.append(0) if x else None
+
+                if with_bounds:
+                    lower_bounds.append(bounds[v][0])
+                    upper_bounds.append(bounds[v][1])
+        initial_params = new_initial_params
 
     def f(q, *fitting):
         if structure_factor:
-            return intensity_for_fitting(q, 
-                            **{name: fitting[param_order.index(name)] for name in param_order},
-                            **{name: initial_params[name] for name in initial_params if name not in param_order})
+            reconstructed = {}
+            names_to_exclude = []
+
+
+            real_counter = 0
+            beginning_list = False
+            for i in mask:
+                if beginning_list and i == -1: # If the previous list was empty and there is another one following
+                    continue
+                elif beginning_list and i == 0: # If the previous list was empty
+                    beginning_list = False
+
+                if i == 0: # No list
+                    reconstructed[param_order[real_counter]] = fitting[real_counter]
+                    names_to_exclude.append(param_order[real_counter])
+                    real_counter += 1
+                elif i == -1: # Beginning of a list
+                    beginning_list = True
+                    continue
+                elif i == 1: # Inside a list
+                    name = param_order[real_counter][:-2] # Remove the _i suffix
+                    if name not in reconstructed:
+                        reconstructed[name] = []
+                    reconstructed[name].append(fitting[real_counter])
+                    names_to_exclude.append(param_order[real_counter])
+                    real_counter += 1
+
+            reconstructed.update({name: initial_params[name] for name in initial_params if name not in names_to_exclude})
+            return intensity_for_fitting(q, **reconstructed)
         else:
             return form_factor_for_fitting(q, 
                             **{name: fitting[param_order.index(name)] for name in param_order},
@@ -314,7 +387,7 @@ def fit_data(x_data, y_data, initial_params=initial_params, fit_params=fit_param
             p0=[initial_params[name] for name in param_order],
             bounds=bounds,
             method=method,
-            maxfev=1000
+            maxfev=2000
         )
     except Exception as e:
         print(f"Error during curve fitting: {e}\nMoving on to next one.")
@@ -557,3 +630,34 @@ def compute_confidence_intervals(fitted_params, confidence_level=0.05):
     upper_bound = np.percentile(arr_fitted_params, (1 - confidence_level / 2) * 100, method="nearest", axis=0)
 
     return {param_order[i]: (lower_bound[i], upper_bound[i]) for i in range(len(param_order))}
+
+
+if __name__ == "__main__":
+    import numpy as np
+    x = np.linspace(0.001, 0.5, 100)
+    y = intensity_for_fitting(x, **initial_params)
+    import matplotlib.pyplot as plt
+    plt.plot(x, y)
+    plt.yscale('log')
+    plt.savefig("test_intensity_plot.png", dpi=300)
+
+    t = list(fit_params.values())
+
+    print(any(isinstance(x, (np.ndarray, list, tuple)) for x in t))
+
+    q = np.linspace(0.01, 0.5, 100)
+    I = intensity_for_fitting(q, **initial_params)
+    noise_level = 0.0001 * np.max(I)
+    I_noisy = I + np.random.normal(0, noise_level, size=I.shape)
+    plt.scatter(q, I_noisy, label='Noisy Data')
+    plt.plot(q, I, '-', label='True Intensity')
+    plt.yscale('log')
+    plt.xlabel('q')
+    plt.ylabel('Intensity')
+    plt.legend()
+    plt.savefig("test_noisy_intensity_plot.png", dpi=300)
+
+    a, b, c = fit_data(q, I_noisy, initial_params, fit_params)
+
+    print(c)
+    print(a)

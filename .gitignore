@@ -169,3 +169,4 @@ dist/
 src/cluster/new_bootstrap_data/
 src/cluster/old_data/
 src/cluster/bootstrap_data/
+old/

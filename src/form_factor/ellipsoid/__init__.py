@@ -1,0 +1,1 @@
+"""Ellipsoid form factor model."""
