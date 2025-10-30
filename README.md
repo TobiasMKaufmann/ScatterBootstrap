@@ -92,7 +92,7 @@ pip install -r requirements.txt
 pip install --upgrade setuptools pip wheel
 
 # Build C extensions in-place
-python setup.py build_ext --inplace
+python setup.py build_py
 
 # Optional: Install the package in development mode
 pip install -e .
@@ -101,16 +101,15 @@ pip install -e .
 ### 6. Verify Installation
 
 ```bash
-python -c "
-from src.core_shell_cylinder.wrapper import compute_form_factor
-from src.core_shell_cylinder.hayter_msa_wrapper import compute_structure_factor
-print('C extensions loaded successfully!')
-"
 ```
 
 ## Quick Start
 
 ### Basic Usage Example
+**TEMPORARY**
+```python
+python utils.py
+```
 
 ```python
 from src.utils import form_factor, structure_factor, intensity
