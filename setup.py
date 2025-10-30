@@ -98,6 +98,7 @@ class BuildSharedLibraries(build_py):
             # Windows with MSVC
             dll_file = os.path.join(output_dir, f'{name}.dll')
             output_file = os.path.join(output_dir, f'{name}.pyd')
+            lib_file = os.path.join(output_dir, f'{name}.lib')
             
             output_dir_win = output_dir.replace('/', '\\')
             lib_dir_win = 'src\\lib'
@@ -115,7 +116,7 @@ class BuildSharedLibraries(build_py):
                     obj_win = obj.replace('/', '\\')
                     
                     compile_cmd = [
-                        'cl', '/c', '/nologo', '/O2', '/MD', '/W3',
+                        'cl', '/c', '/nologo', '/O2', '/MD', '/W3', '/DFLOAT_SIZE=8', '/favor:ARM64',
                         f'/I{output_dir_win}',
                         f'/I{lib_dir_win}',
                         f'/Tc{src_win}',
@@ -129,14 +130,36 @@ class BuildSharedLibraries(build_py):
                 
                 link_cmd = [
                     'link', '/DLL', '/nologo',
-                    f'/OUT:{dll_file_win}'
+                    f'/OUT:{dll_file_win}',
+                    f'/IMPLIB:{lib_file}'
                 ]
+                
+                # For core library, export all symbols (double precision only since FLOAT_SIZE=8)
+                if not link_to_sas_core:
+                    # Functions
+                    link_cmd.append('/EXPORT:sas_3j1x_x')
+                    link_cmd.append('/EXPORT:sas_2J1x_x')
+                    link_cmd.append('/EXPORT:cephes_j1')
+                    link_cmd.append('/EXPORT:cephes_j0')
+                    link_cmd.append('/EXPORT:cephes_jn')
+                    link_cmd.append('/EXPORT:polevl')
+                    link_cmd.append('/EXPORT:p1evl')
+                    link_cmd.append('/EXPORT:SINCOS')
+                    link_cmd.append('/EXPORT:sas_sinx_x')
+                    # Gauss quadrature arrays
+                    link_cmd.append('/EXPORT:Gauss76Z')
+                    link_cmd.append('/EXPORT:Gauss76Wt')
+                    link_cmd.append('/EXPORT:Gauss150Z')
+                    link_cmd.append('/EXPORT:Gauss150Wt')
+                
                 link_cmd.extend(obj_files_win)
                 
                 if link_to_sas_core:
-                    sas_core_lib = 'src\\lib\\sas_core.lib'
+                    sas_core_lib = os.path.abspath('src\\lib\\libsas_core.lib')
                     if os.path.exists(sas_core_lib):
                         link_cmd.append(sas_core_lib)
+                    else:
+                        print(f"  Warning: libsas_core.lib not found at {sas_core_lib}, linking may fail")
                 
                 subprocess.run(link_cmd, check=True)
                 
@@ -146,16 +169,24 @@ class BuildSharedLibraries(build_py):
                     os.rename(dll_file, output_file)
                 
             finally:
-                # Cleanup
+                # Cleanup object files
                 for obj in obj_files:
                     if os.path.exists(obj):
                         os.remove(obj)
-                lib_file = dll_file.replace('.dll', '.lib')
-                exp_file = dll_file.replace('.dll', '.exp')
-                if os.path.exists(lib_file):
-                    os.remove(lib_file)
-                if os.path.exists(exp_file):
-                    os.remove(exp_file)
+                
+                # Keep .lib file for core library (needed for linking), remove for others
+                if link_to_sas_core:
+                    lib_file = dll_file.replace('.dll', '.lib')
+                    exp_file = dll_file.replace('.dll', '.exp')
+                    if os.path.exists(lib_file):
+                        os.remove(lib_file)
+                    if os.path.exists(exp_file):
+                        os.remove(exp_file)
+                else:
+                    # For core library, only remove .exp file
+                    exp_file = dll_file.replace('.dll', '.exp')
+                    if os.path.exists(exp_file):
+                        os.remove(exp_file)
         else:
             # Linux/Mac with GCC
             output_file = os.path.join(output_dir, f'{name}.so')
