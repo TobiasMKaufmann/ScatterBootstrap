@@ -33,6 +33,8 @@ class BuildSharedLibraries(build_py):
             r'C:\BuildTools',
             r'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools',
             r'C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools',
+            r'C:\Program Files\Microsoft Visual Studio\2022\BuildTools',
+            r'C:\Program Files\Microsoft Visual Studio\2019\BuildTools'
         ]
         
         msvc_path = None
@@ -67,6 +69,7 @@ class BuildSharedLibraries(build_py):
         # Find Windows SDK
         sdk_paths = [
             r'C:\Program Files (x86)\Windows Kits\10',
+            r'C:\Program Files\Windows Kits\10',
             r'C:\BuildTools\Windows Kits\10',
         ]
         
