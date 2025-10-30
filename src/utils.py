@@ -636,6 +636,7 @@ if __name__ == "__main__":
     import numpy as np
     x = np.linspace(0.001, 0.5, 100)
     y = intensity_for_fitting(x, **initial_params)
+    print("y:", y)
     import matplotlib.pyplot as plt
     plt.plot(x, y)
     plt.yscale('log')

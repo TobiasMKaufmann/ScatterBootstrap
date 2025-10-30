@@ -116,6 +116,7 @@ void Fq(double q,double *F1, double *F2, double sld, double solvent_sld,
     const double zb = M_PI_4;
     double total_F1 = 0.0;
     double total_F2 = 0.0;
+    
     for (int i = 0; i < GAUSS_N; i++){
         const double theta = GAUSS_Z[i]*zm + zb;
         double sin_theta, cos_theta; // slots to hold sincos function output

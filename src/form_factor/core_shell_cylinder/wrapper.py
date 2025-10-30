@@ -19,6 +19,23 @@ if not os.path.exists(_lib_path):
         "Please build the extension by running: python setup.py build_py"
     )
 
+
+# On Windows, add the lib directory to DLL search path so libsas_core.pyd can be found
+if sys.platform == 'win32':
+    lib_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
+    libsas_core_path = os.path.join(lib_dir, "libsas_core.pyd")
+    
+    # Preload the core library
+    if os.path.exists(libsas_core_path):
+        try:
+            _core_lib = ctypes.CDLL(libsas_core_path)
+        except Exception as e:
+            print(f"Warning: Could not preload libsas_core.pyd: {e}")
+    
+    # Also add to DLL search path for Python 3.8+
+    if hasattr(os, 'add_dll_directory'):
+        os.add_dll_directory(lib_dir)
+
 _lib = ctypes.CDLL(_lib_path)
 
 # Define the Fq function signature
