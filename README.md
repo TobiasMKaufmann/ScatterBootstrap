@@ -334,7 +334,7 @@ bootstrap_results = residuals_bootstrap(
     all_params=fitted_dict,      # Use fitted values as starting point
     fit_params=fit_params,
     n_iterations=1000,           # Increase for better statistics
-    use_structure_factor=True    # Set False if no structure factor
+    structure_factor=True    # Set False if no structure factor
 )
 
 # Step 3: Compute confidence intervals
@@ -352,7 +352,7 @@ plot_fit_data(
     all_params=fitted_dict,
     title="Barbell Model Fit",
     folder="./results",          # Output directory
-    use_structure_factor=True
+    structure_factor=True
 )
 
 print("Analysis complete! Results saved to ./results/")
@@ -369,7 +369,7 @@ print("Analysis complete! Results saved to ./results/")
 
 - Start with `n_iterations=100` for testing, increase to 1000-5000 for final analysis
 - Use the cluster computing framework (`src/cluster/`) for large bootstrap analyses
-- Set `use_structure_factor=False` if structure factor effects are negligible
+- Set `structure_factor=False` if structure factor effects are negligible
 
 ## Project Structure
 
