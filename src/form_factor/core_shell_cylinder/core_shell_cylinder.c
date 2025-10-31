@@ -14,8 +14,6 @@
 #include "../../lib/sas_J1.h"
 #include "../../lib/utils.h"
 
-#define M_4PI_3 (4.0 * M_PI / 3.0)
-
 #ifndef M_PI_4
 #define M_PI_4 (M_PI / 4.0)
 #endif

@@ -256,6 +256,8 @@ REL_FILE_IDENTIFIER = "IDENTIFIER"  # Change this to your file identifier
 # FITTING CONFIGURATION - ADJUST FOR YOUR SPECIFIC ANALYSIS
 # -----------------------------------------------------------------------------
 
+# NOTE: Configure which model to use in utils.py prior to running this script!
+
 # ⚠️  IMPORTANT: Review and modify these settings based on your data!
 #
 # These parameters control which parameters are fitted vs fixed, parameter bounds,

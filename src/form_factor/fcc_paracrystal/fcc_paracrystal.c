@@ -1,5 +1,9 @@
 #include "../../lib/sas_core.h"
 
+// Forward declarations for sphere functions defined in sphere_form.c
+double sphere_volume(double radius);
+double sphere_form(double q, double radius, double sld, double solvent_sld);
+
 static double
 fcc_Zq(double qa, double qb, double qc, double dnn, double d_factor)
 {

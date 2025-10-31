@@ -1,10 +1,8 @@
 # Include C source files and headers
-include src/core_shell_cylinder/*.c
-include src/core_shell_cylinder/*.h
+# Note: core_shell_cylinder directory was removed - models now under form_factor/
 
 # Include Python source files
 include src/*.py
-include src/core_shell_cylinder/*.py
 
 # Include documentation
 include README.md
@@ -19,7 +17,6 @@ include MANIFEST.in
 
 # Include initial parameter files
 include src/initial_params.json
-include src/initial_params_all_structure_factors.json
 
 # Exclude compiled files and cache
 global-exclude *.pyc
