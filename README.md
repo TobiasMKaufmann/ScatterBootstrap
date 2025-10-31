@@ -562,7 +562,6 @@ error LNK2001: unresolved external symbol
 - Rebuild: `python setup.py clean --all && python setup.py build_py`
 
 #### 3. Linux: HDF5 Libraries Missing
-#### 3. Linux: HDF5 Libraries Missing
 ```
 error: Could not find HDF5 installation
 ```
