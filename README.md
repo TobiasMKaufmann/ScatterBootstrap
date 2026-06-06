@@ -1,4 +1,4 @@
-# ECHEMES Bootstrapping: Advanced Small-Angle Scattering Analysis
+# Bootstrapping: Advanced Small-Angle Scattering Analysis
 
 A comprehensive Python package for analyzing small-angle scattering (SAS) data with **14 form factor models** and **2 structure factor models**, featuring advanced bootstrapping techniques and high-performance cross-platform C extensions. All scattering models are adapted from [SasView](https://www.sasview.org/) with optimized implementations.
 
