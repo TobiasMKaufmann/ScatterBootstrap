@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "numpy"]
+requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "core_shell_cylinder_project"
-version = "0.3.0"
-description = "Advanced SAS analysis with bootstrapping, cluster computing, and high-performance C extensions for core-shell cylinder models."
+name = "scatterbootstrap"
+version = "0.4.0"
+description = "Small-angle scattering form factor and structure factor models with bootstrap-based uncertainty quantification, backed by high-performance C extensions."
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -26,19 +26,19 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
 dependencies = [
-    "numpy>=1.20.0",
+    "numpy>=1.22.0",
     "scipy>=1.7.0",
     "matplotlib>=3.3.0",
     "pandas>=1.3.0",
-    "cffi>=1.14.0",
+    "tables>=3.6.0",
     "tqdm>=4.60.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/TobiasMKaufmann/echemes-bootstrapping"
-Documentation = "https://github.com/TobiasMKaufmann/echemes-bootstrapping#readme"
-Repository = "https://github.com/TobiasMKaufmann/echemes-bootstrapping.git"
-"Bug Tracker" = "https://github.com/TobiasMKaufmann/echemes-bootstrapping/issues"
+Homepage = "https://github.com/TobiasMKaufmann/ScatterBootstrap"
+Documentation = "https://github.com/TobiasMKaufmann/ScatterBootstrap#readme"
+Repository = "https://github.com/TobiasMKaufmann/ScatterBootstrap.git"
+"Bug Tracker" = "https://github.com/TobiasMKaufmann/ScatterBootstrap/issues"
 
 [project.optional-dependencies]
 dev = [

@@ -1,5 +1,5 @@
-# Include C source files and headers
-# Note: core_shell_cylinder directory was removed - models now under form_factor/
+# Include C source files and headers (needed to build from an sdist)
+recursive-include src/scatterbootstrap *.c *.h
 
 # Include Python source files
 include src/*.py
@@ -8,6 +8,13 @@ include src/*.py
 include README.md
 include LICENSE
 include CHANGELOG.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include CITATION.cff
+
+# Include the test suite and JOSS paper sources
+recursive-include tests *.py
+recursive-include paper *.md *.bib
 
 # Include configuration files
 include requirements.txt

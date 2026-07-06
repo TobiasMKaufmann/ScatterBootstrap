@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.9", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # MSVC is preinstalled on the windows-latest runner; this makes cl.exe
+      # available on PATH so setup.py uses it directly.
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Build and install (with C extensions)
+        run: pip install -e .[dev]
+
+      - name: Run test suite
+        run: pytest -v --cov=scatterbootstrap --cov-report=term-missing
+
+  lint:
+    name: Lint (black + flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip black flake8
+      - name: black --check
+        run: black --check src/scatterbootstrap tests
+      - name: flake8
+        run: flake8 src/scatterbootstrap tests
+
+  paper:
+    name: Build JOSS paper draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile paper
+        uses: openjournals/openjournals-draft-action@master
+        with:
+          journal: joss
+          paper-path: paper/paper.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: paper
+          path: paper/paper.pdf

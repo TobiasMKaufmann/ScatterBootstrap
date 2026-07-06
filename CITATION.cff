@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+title: "ScatterBootstrap: Small-angle scattering model fitting with bootstrap-based uncertainty quantification"
+abstract: >-
+  A Python package for fitting small-angle X-ray and neutron scattering (SAXS/SANS)
+  data with high-performance C form factor and structure factor models and for
+  quantifying parameter uncertainties via residual bootstrapping.
+authors:
+  - family-names: Kaufmann
+    given-names: Tobias
+    affiliation: "ETH Zürich"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"  # TODO: add real ORCID
+version: 0.4.0
+license: MIT
+repository-code: "https://github.com/TobiasMKaufmann/ScatterBootstrap"
+keywords:
+  - small-angle scattering
+  - SAXS
+  - SANS
+  - form factor
+  - structure factor
+  - bootstrap
+  - uncertainty quantification

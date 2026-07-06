@@ -1,7 +1,16 @@
-numpy>=1.20.0
+# Runtime dependencies for ScatterBootstrap.
+#
+# These mirror the [project] dependencies in pyproject.toml and are provided for
+# convenience (e.g. `pip install -r requirements.txt`). The recommended way to
+# install the package and build its C extensions is still `pip install -e .`
+# (add `[dev]` or `[docs]` for the optional tooling).
+numpy>=1.22.0
 scipy>=1.7.0
 matplotlib>=3.3.0
 pandas>=1.3.0
-cffi>=1.14.0
 tables>=3.6.0
 tqdm>=4.60.0
+
+# Optional: only needed for the HDF5 post-processing / comparison scripts
+# in src/ (plot_comparisons.py, data_extraction_functions.py).
+Pillow>=9.0.0

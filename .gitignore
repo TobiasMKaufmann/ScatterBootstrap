@@ -7,12 +7,13 @@ __pycache__/
 *.so
 *.dll
 *.dylib
+*.lib
 
 # Compiled executables and object files
 *.o
+*.obj
+*.exp
 *.out
-src/core_shell_cylinder/core_shell_cylinder
-src/core_shell_cylinder/hayter_msa
 
 # Distribution / packaging
 .Python
@@ -140,6 +141,9 @@ dmypy.json
 !src/fitting_example.png
 !src/raw_data.png
 !src/scattering_analysis.png
+# Keep figures used by the JOSS paper and docs
+!paper/*.png
+!docs/**/*.png
 *.dat
 *.csv
 *.edf

@@ -3,8 +3,57 @@ import sys
 import subprocess
 import glob
 import shutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py
+
+PACKAGE_ROOT = os.path.join('src', 'scatterbootstrap')
+
+
+def resolve_build_jobs(n_tasks):
+    """Number of parallel compiler jobs to use for the model extensions.
+
+    Honors ``SCATTERBOOTSTRAP_BUILD_JOBS`` (or the conventional ``MAX_JOBS``)
+    when set to a positive integer; otherwise defaults to one job per CPU core.
+    The result is capped at ``n_tasks``.
+    """
+    for var in ('SCATTERBOOTSTRAP_BUILD_JOBS', 'MAX_JOBS'):
+        value = os.environ.get(var)
+        if value:
+            try:
+                requested = int(value)
+            except ValueError:
+                continue
+            if requested > 0:
+                return max(1, min(requested, n_tasks))
+    return max(1, min(os.cpu_count() or 1, n_tasks))
+
+
+def discover_models(kind):
+    """Return the names of every model in ``src/scatterbootstrap/<kind>``.
+
+    A model is any sub-directory that contains a ``<name>.c`` source file, so
+    new models are picked up automatically with no edits to this file.
+    """
+    base = os.path.join(PACKAGE_ROOT, kind)
+    if not os.path.isdir(base):
+        return []
+    models = []
+    for name in sorted(os.listdir(base)):
+        if os.path.exists(os.path.join(base, name, f'{name}.c')):
+            models.append(name)
+    return models
+
+
+def build_package_data():
+    """Map every compiled sub-package to the shared-library glob patterns."""
+    binaries = ['*.so', '*.pyd', '*.dll', '*.dylib']
+    data = {'scatterbootstrap.lib': binaries}
+    for kind in ('form_factors', 'structure_factors'):
+        for model in discover_models(kind):
+            data[f'scatterbootstrap.{kind}.{model}'] = binaries
+    return data
+
 
 class BuildSharedLibraries(build_py):
     """Custom build command to compile C files as shared libraries"""
@@ -129,26 +178,45 @@ class BuildSharedLibraries(build_py):
         if sys.platform == 'win32':
             self.setup_msvc_environment()
         
-        # First, build the global SAS library
+        # First, build the global SAS library. Every model links against it, so
+        # this must finish before any model build starts.
         self.build_sas_core_lib()
-        
-        # Build all form factor models
-        form_factors = [
-            'sphere', 'ellipsoid', 'barbell', 'core_shell_cylinder',
-            'core_multi_shell', 'elliptical_cylinder', 'fuzzy_sphere',
-            'lamellar_hg', 'linear_pearls', 'onion', 'polymer_micelle',
-            'pringle', 'bcc_paracrystal', 'fcc_paracrystal'
-        ]
-        
-        for model in form_factors:
-            self.build_form_factor(model)
-        
-        # Build all structure factor models
-        structure_factors = ['hayter_msa', 'hardsphere']
-        
-        for model in structure_factors:
-            self.build_structure_factor(model)
-        
+
+        # Collect the independent per-model build tasks (auto-discovered).
+        tasks = [(self.build_form_factor, m) for m in discover_models('form_factors')]
+        tasks += [(self.build_structure_factor, m) for m in discover_models('structure_factors')]
+
+        # The model builds are independent of each other and each spends its time
+        # in a compiler subprocess (which releases the GIL), so we compile them in
+        # parallel across threads. Controlled by SCATTERBOOTSTRAP_BUILD_JOBS /
+        # MAX_JOBS (default: one per CPU core).
+        jobs = resolve_build_jobs(len(tasks))
+        if jobs <= 1 or len(tasks) <= 1:
+            for build_fn, model in tasks:
+                build_fn(model)
+        else:
+            print(f"\nCompiling {len(tasks)} model extensions in parallel "
+                  f"({jobs} jobs)...")
+            errors = []
+            with ThreadPoolExecutor(max_workers=jobs) as executor:
+                futures = {
+                    executor.submit(build_fn, model): model
+                    for build_fn, model in tasks
+                }
+                for future in as_completed(futures):
+                    model = futures[future]
+                    try:
+                        future.result()
+                    except Exception as exc:  # noqa: BLE001 - surface all build errors
+                        errors.append((model, exc))
+            if errors:
+                for model, exc in errors:
+                    print(f"  ERROR building {model}: {exc}")
+                raise RuntimeError(
+                    f"{len(errors)} model extension(s) failed to compile: "
+                    f"{', '.join(model for model, _ in errors)}"
+                )
+
         # Continue with the normal build
         build_py.run(self)
     
@@ -159,21 +227,21 @@ class BuildSharedLibraries(build_py):
         print("="*70)
         
         lib_sources = [
-            'src/lib/sas_J1.c',
-            'src/lib/sas_3j1x_x.c',
-            'src/lib/sas_J0.c',
-            'src/lib/sas_JN.c',
-            'src/lib/utils.c',
-            'src/lib/gauss76.c',
-            'src/lib/gauss150.c',
-            'src/lib/polevl.c',
+            'src/scatterbootstrap/lib/sas_J1.c',
+            'src/scatterbootstrap/lib/sas_3j1x_x.c',
+            'src/scatterbootstrap/lib/sas_J0.c',
+            'src/scatterbootstrap/lib/sas_JN.c',
+            'src/scatterbootstrap/lib/utils.c',
+            'src/scatterbootstrap/lib/gauss76.c',
+            'src/scatterbootstrap/lib/gauss150.c',
+            'src/scatterbootstrap/lib/polevl.c',
         ]
         
-        self.build_shared_lib('libsas_core', lib_sources, 'src/lib')
+        self.build_shared_lib('libsas_core', lib_sources, 'src/scatterbootstrap/lib')
     
     def build_form_factor(self, model_name):
         """Build a form factor model"""
-        model_dir = f'src/form_factor/{model_name}'
+        model_dir = f'src/scatterbootstrap/form_factors/{model_name}'
         model_file = f'{model_dir}/{model_name}.c'
         
         if os.path.exists(model_file):
@@ -197,7 +265,7 @@ class BuildSharedLibraries(build_py):
     
     def build_structure_factor(self, model_name):
         """Build a structure factor model"""
-        model_dir = f'src/structure_factor/{model_name}'
+        model_dir = f'src/scatterbootstrap/structure_factors/{model_name}'
         model_file = f'{model_dir}/{model_name}.c'
         
         if os.path.exists(model_file):
@@ -267,7 +335,7 @@ class BuildSharedLibraries(build_py):
             lib_file = os.path.join(output_dir, f'{name}.lib')
             
             output_dir_win = output_dir.replace('/', '\\')
-            lib_dir_win = 'src\\lib'
+            lib_dir_win = 'src\\scatterbootstrap\\lib'
             
             obj_files = []
             for src in sources:
@@ -374,7 +442,7 @@ class BuildSharedLibraries(build_py):
                 link_cmd.extend(obj_files_win)
                 
                 if link_to_sas_core:
-                    sas_core_lib = os.path.abspath('src\\lib\\libsas_core.lib')
+                    sas_core_lib = os.path.abspath('src\\scatterbootstrap\\lib\\libsas_core.lib')
                     if os.path.exists(sas_core_lib):
                         link_cmd.append(sas_core_lib)
                     else:
@@ -432,7 +500,7 @@ class BuildSharedLibraries(build_py):
             compile_cmd = ['gcc', '-shared', '-fPIC', '-O2', '-DFLOAT_SIZE=8']
             
             # Add include paths
-            compile_cmd.extend([f'-I{output_dir}', '-Isrc/lib'])
+            compile_cmd.extend([f'-I{output_dir}', '-Isrc/scatterbootstrap/lib'])
             
             # Add sources
             compile_cmd.extend(sources)
@@ -440,8 +508,8 @@ class BuildSharedLibraries(build_py):
             # Link to sas_core if needed
             if link_to_sas_core:
                 # Get absolute path to lib directory
-                lib_dir_abs = os.path.abspath('src/lib')
-                compile_cmd.extend(['-Lsrc/lib', '-lsas_core'])
+                lib_dir_abs = os.path.abspath('src/scatterbootstrap/lib')
+                compile_cmd.extend(['-Lsrc/scatterbootstrap/lib', '-lsas_core'])
                 # Add RPATH so the library can find libsas_core.so at runtime
                 compile_cmd.append(f'-Wl,-rpath,$ORIGIN/../../lib')
             
@@ -458,23 +526,5 @@ setup(
     cmdclass={'build_py': BuildSharedLibraries},
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    package_data={
-        'lib': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.sphere': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.ellipsoid': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.barbell': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.core_shell_cylinder': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.core_multi_shell': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.elliptical_cylinder': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.fuzzy_sphere': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.lamellar_hg': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.linear_pearls': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.onion': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.polymer_micelle': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.pringle': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.bcc_paracrystal': ['*.so', '*.pyd', '*.dll'],
-        'form_factor.fcc_paracrystal': ['*.so', '*.pyd', '*.dll'],
-        'structure_factor.hayter_msa': ['*.so', '*.pyd', '*.dll'],
-        'structure_factor.hardsphere': ['*.so', '*.pyd', '*.dll'],
-    },
+    package_data=build_package_data(),
 )
