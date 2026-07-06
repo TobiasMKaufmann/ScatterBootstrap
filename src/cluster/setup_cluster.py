@@ -2,7 +2,7 @@
 Cluster Environment Setup and C Extension Builder
 
 This script handles the automated setup of the Python environment and C extensions
-for the ECHEMES bootstrapping framework on ETH HPC systems. It ensures all necessary
+for the ScatterBootstrap package on ETH HPC systems. It ensures all necessary
 dependencies are installed and C extensions are properly compiled for the cluster
 architecture.
 
@@ -69,89 +69,47 @@ def setup_environment():
     
     # Check if pip is available with the loaded module
     print("Checking for pip with loaded module...")
-    pip_available = run_command(f"{sys.executable} -c 'import pip'")
-    
-    if pip_available:
-        print("✓ pip is available, installing packages")
-        install_commands = [
-            f"{sys.executable} -m pip install --user numpy",
-            f"{sys.executable} -m pip install --user pandas", 
-            f"{sys.executable} -m pip install --user scipy",
-            f"{sys.executable} -m pip install --user h5py",
-            f"{sys.executable} -m pip install --user tables",  # for pandas HDF5
-            f"{sys.executable} -m pip install --user tqdm",
-            f"{sys.executable} -m pip install --user matplotlib",
-        ]
-        
-        for cmd in install_commands:
-            print(f"Running: {cmd}")
-            if not run_command(cmd):
-                print(f"Warning: Failed to install package: {cmd}")
-            else:
-                print("✓ Package installed successfully")
-    else:
+    if not run_command(f"{sys.executable} -c 'import pip'"):
         print("✗ pip not available even with module loaded")
-    
-    # Handle C extensions in src/core_shell_cylinder
-    print("Checking C extensions...")
-    c_ext_dir = "../core_shell_cylinder"
-    
-    if os.path.exists(c_ext_dir):
-        print(f"Found C extension directory: {c_ext_dir}")
-        
-        # Always recompile .so files on cluster for compatibility
-        print("Recompiling C extensions for cluster compatibility...")
-        
-        # Remove existing .so files first
-        so_files = ["core_shell_cylinder.so", "libcore_shell_cylinder.so", "hayter_msa.so"]
-        for so_file in so_files:
-            so_path = os.path.join(c_ext_dir, so_file)
-            if os.path.exists(so_path):
-                os.remove(so_path)
-                print(f"Removed {so_file}")
-        
-        compile_commands = [
-            f"cd {c_ext_dir} && gcc -shared -fPIC -O3 -Wall -o core_shell_cylinder.so core_shell_cylinder.c gauss76.c sas_J1.c polevl.c utils.c -lm",
-            f"cd {c_ext_dir} && gcc -shared -fPIC -O3 -Wall -o hayter_msa.so hayter_msa.c utils.c -lm",
-            f"cd {c_ext_dir} && cp core_shell_cylinder.so libcore_shell_cylinder.so",
-            f"cd {c_ext_dir} && cp hayter_msa.so libhayter_msa.so"
-        ]
-        
-        for cmd in compile_commands:
-            print(f"Running: {cmd}")
-            if not run_command(cmd):
-                print(f"Warning: Compilation failed for: {cmd}")
-            else:
-                print(f"✓ Compiled successfully")
-        
-        # Test if C extensions can be imported
-        print("Testing C extension imports...")
-        test_cmd = f"cd {c_ext_dir} && {sys.executable} -c 'import wrapper; print(\"C extension loaded successfully\")'"
-        if not run_command(test_cmd):
-            print("Warning: C extension import failed")
-        else:
-            print("✓ C extensions working")
-    
-    else:
-        print(f"Warning: C extension directory {c_ext_dir} not found")
-    
-    # Test if we can import all required packages
+        sys.exit(1)
+
+    # Install the package itself (editable, user-space). This pulls all runtime
+    # dependencies from pyproject.toml AND compiles every C extension
+    # (libsas_core + all form/structure factor models) for the cluster's
+    # architecture via the project's own build system -- no hand-maintained
+    # compiler commands.
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    print(f"Installing ScatterBootstrap (with C extensions) from {repo_root} ...")
+    if not run_command(f"{sys.executable} -m pip install --user -e {repo_root}"):
+        print("✗ Package installation failed")
+        sys.exit(1)
+    print("✓ Package installed, C extensions compiled")
+
+    # Verify the installed package: import, model discovery, and one evaluation
+    # through a compiled C kernel.
+    print("Verifying compiled extensions...")
+    verify = (
+        "import scatterbootstrap as sb; "
+        "ffs = sb.list_form_factor_models(); sfs = sb.list_structure_factor_models(); "
+        "assert ffs and sfs, 'no models discovered'; "
+        "val = sb.form_factor(0.1, 'sphere', sld=4e-6, sld_solvent=1e-6, radius=50); "
+        "print(f'  {len(ffs)} form factors, {len(sfs)} structure factors, sphere F2(0.1)={val:.3e}')"
+    )
+    if not run_command(f'{sys.executable} -c "{verify}"'):
+        print("✗ Compiled extension verification failed")
+        sys.exit(1)
+    print("✓ C extensions working")
+
+    # Test the auxiliary packages the cluster pipeline needs.
     print("Testing package availability...")
     test_imports = [
         "import numpy",
-        "import pandas", 
-        "import scipy",
+        "import pandas",
         "import scipy.optimize",
-        "import h5py",
         "import tables",  # PyTables for pandas HDF5 support
         "import tqdm",
-        "import Cython",
-        "import json",
-        "import glob",
-        "import os",
-        "import sys"
     ]
-    
+
     for test_import in test_imports:
         if not run_command(f"{sys.executable} -c '{test_import}'"):
             print(f"✗ Failed to import: {test_import}")

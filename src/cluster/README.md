@@ -1,4 +1,4 @@
-# Cluster Processing for ECHEMES Bootstrapping
+# Cluster Processing for ScatterBootstrap
 
 Comprehensive workflow for ETH HPC (Euler/Leonhard) using SLURM job scheduler.
 Optimized for high-throughput bootstrap analysis of small-angle scattering data.
@@ -302,23 +302,26 @@ with pd.HDFStore('bootstrap_data/P_5_S_500_med.h5', 'r') as store:
 
 ## Performance Notes
 
-⚠️ **Current Status**: Functional but not yet optimized for high-performance computing.
+The bootstrap refits run **in parallel** across the cores you allocate.
+`process_data.py` reads `$SLURM_CPUS_PER_TASK` and passes it as `n_jobs` to
+`residuals_bootstrap`, so the speedup is roughly linear in `--cpus-per-task`
+(set in `submit_job.sh`). Increase the core count to shorten wall-clock time;
+runtimes below assume the default 8 cores.
 
-### Current Limitations:
-- Sequential processing of datasets (no parallelization)
-- Single-threaded bootstrap iterations
-- No MPI or distributed computing support
+### Typical Runtime (≈8 cores):
+- Small dataset (1000 bootstrap): ~10-20 min
+- Standard dataset (5000 bootstrap): ~30-60 min
+- Large dataset (10000 bootstrap): ~1.5-3 hours
 
-### Typical Runtime:
-- Small dataset (1000 bootstrap): ~1-2 hours
-- Standard dataset (5000 bootstrap): ~4-8 hours
-- Large dataset (10000 bootstrap): ~12-20 hours
+(Serial, single-core runs are roughly `n_cores` times slower.)
 
-### Planned Optimizations:
-- Parallel processing of multiple datasets
-- Vectorized bootstrap iterations
-- Advanced compiler optimizations
-- GPU acceleration support
+### Scope and possible future work:
+- Parallelism is **within** a dataset's bootstrap (one process per core, single
+  node). Datasets are still processed one after another.
+- To scale across datasets, submit a SLURM job array (one job per dataset); each
+  job then parallelizes its own bootstrap.
+- Not yet implemented: multi-node/MPI distribution, advanced compiler flags
+  (`-O3 -march=native`), asynchronous HDF5 I/O.
 
 ## Troubleshooting
 
@@ -378,7 +381,7 @@ with pd.HDFStore('bootstrap_data/P_5_S_500_med.h5', 'r') as store:
 ssh your_nethz@euler.ethz.ch
 
 # Navigate to project
-cd echemes-bootstrapping/src/cluster
+cd ScatterBootstrap/src/cluster
 
 # Check files
 ls -la bootstrap_data/
@@ -387,7 +390,7 @@ ls -la bootstrap_data/
 ### Manual Job Submission:
 ```bash
 ssh your_nethz@euler.ethz.ch
-cd echemes-bootstrapping/src/cluster
+cd ScatterBootstrap/src/cluster
 sbatch submit_job.sh
 ```
 
@@ -405,6 +408,6 @@ See main project README.md for analysis tools and examples.
 ---
 
 **Author**: Tobias Kaufmann  
-**Project**: ECHEMES Bootstrapping - Advanced SAS Analysis Tools  
+**Project**: ScatterBootstrap - Advanced SAS Analysis Tools  
 **Cluster**: ETH HPC (Euler/Leonhard Open)  
 **License**: MIT

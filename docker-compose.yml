@@ -1,0 +1,18 @@
+services:
+  scatterbootstrap-dev:
+    build: .
+    container_name: scatterbootstrap-dev
+    volumes:
+      - type: volume
+        source: scatterbootstrap-workspace
+        target: /app
+    environment:
+      - PYTHONUNBUFFERED=1
+    stdin_open: true
+    tty: true
+    working_dir: /app
+    command: bash
+
+volumes:
+  scatterbootstrap-workspace:
+    driver: local

@@ -1,198 +1,160 @@
-# Example: Adding a Sphere Form Factor Model
+# Example: Adding a New Form Factor Model
 
-This is a template/example for adding a new form factor model to the project.
+This is a complete, worked example for adding a new scattering model to
+ScatterBootstrap. It uses the bundled **sphere** model as the template. The same
+recipe applies to structure factors (use `structure_factors/` and expose `Iq`).
 
-## Step 1: Create Directory Structure
+The framework **auto-discovers and auto-compiles** models: once the files below
+exist, `pip install -e .` builds the C extension and the model becomes available
+by name through `scatterbootstrap.form_factor("<name>", ...)`. You do **not** edit
+`setup.py` or `core.py`.
+
+## Step 1: Create the directory structure
 
 ```
-src/form_factor/sphere/
+src/scatterbootstrap/form_factors/sphere/
 ├── __init__.py
 ├── wrapper.py
 ├── sphere.c
 └── sphere.h
 ```
 
-## Step 2: Implement C Code (sphere.c)
+## Step 2: Implement the C kernel (`sphere.c`)
+
+Form factor kernels expose a non-`static` `Fq(...)` function that writes the
+orientationally-averaged amplitude `<F>` into `*f1` and the intensity `<F^2>`
+into `*f2`. Reuse the shared numerical core (Bessel functions, quadrature,
+constants) via `sas_core.h`.
 
 ```c
-// sphere.c - Example implementation
-#include <math.h>
-#include "sphere.h"
+/* sphere.c -- adapted from SasView (https://www.sasview.org/), BSD-3-Clause */
+#include "../../lib/sas_core.h"
 
-void compute_sphere_form_factor(double q, double radius, double sld, 
-                                 double solvent_sld, double *F, double *F2) {
-    // Example: Simple sphere form factor
-    double V = (4.0/3.0) * M_PI * pow(radius, 3);
-    double contrast = sld - solvent_sld;
-    double qr = q * radius;
-    
-    double form;
-    if (qr < 1e-6) {
-        form = 1.0;
-    } else {
-        form = 3.0 * (sin(qr) - qr * cos(qr)) / pow(qr, 3);
-    }
-    
-    *F = V * contrast * form;
-    *F2 = (*F) * (*F);
+void Fq(double q,
+        double *f1,
+        double *f2,
+        double sld,
+        double sld_solvent,
+        double radius)
+{
+    const double bes = sas_3j1x_x(q * radius);          /* 3 j1(qr) / (qr) */
+    const double contrast = sld - sld_solvent;
+    const double volume = M_4PI_3 * radius * radius * radius;
+    const double fq = contrast * volume * bes;
+    *f1 = 1.0e-2 * fq;          /* scale to convenient units */
+    *f2 = 1.0e-4 * fq * fq;
 }
 ```
 
-## Step 3: Create Header File (sphere.h)
+## Step 3: Create the header (`sphere.h`)
 
 ```c
-// sphere.h
 #ifndef SPHERE_H
 #define SPHERE_H
 
-void compute_sphere_form_factor(double q, double radius, double sld, 
-                                 double solvent_sld, double *F, double *F2);
+void Fq(double q, double *f1, double *f2,
+        double sld, double sld_solvent, double radius);
 
 #endif
 ```
 
-## Step 4: Create Python Wrapper (wrapper.py)
+## Step 4: Create the Python wrapper (`wrapper.py`)
+
+The wrapper must expose `compute_form_factor(q, **params)` returning an array of
+`F^2` values. Use `find_library` to locate the compiled binary across platforms.
 
 ```python
-# wrapper.py
+"""Python wrapper for the sphere form factor C extension."""
 import ctypes
 import os
-import sys
 
-# Load the shared library
-_lib_path = os.path.join(os.path.dirname(__file__), 
-                         'sphere.so' if sys.platform != 'win32' else 'sphere.pyd')
-_lib = ctypes.CDLL(_lib_path)
+import numpy as np
 
-# Define function signature
-_lib.compute_sphere_form_factor.argtypes = [
-    ctypes.c_double,  # q
-    ctypes.c_double,  # radius
-    ctypes.c_double,  # sld
-    ctypes.c_double,  # solvent_sld
-    ctypes.POINTER(ctypes.c_double),  # F
-    ctypes.POINTER(ctypes.c_double)   # F2
+from ..._lib_finder import find_library
+
+_lib = ctypes.CDLL(find_library("sphere", os.path.dirname(__file__)))
+_lib.Fq.restype = None
+_lib.Fq.argtypes = [
+    ctypes.c_double,                  # q
+    ctypes.POINTER(ctypes.c_double),  # f1 (out)
+    ctypes.POINTER(ctypes.c_double),  # f2 (out)
+    ctypes.c_double,                  # sld
+    ctypes.c_double,                  # sld_solvent
+    ctypes.c_double,                  # radius
 ]
-_lib.compute_sphere_form_factor.restype = None
 
-def compute_form_factor(q, sld, solvent_sld, radius):
-    """
-    Compute the form factor for a sphere.
-    
+
+def compute_form_factor(q, sld, sld_solvent, radius, **kwargs):
+    """Compute |F(q)|^2 for a homogeneous sphere.
+
     Parameters
     ----------
-    q : float
-        The scattering vector magnitude.
-    sld : float
-        The scattering length density of the sphere.
-    solvent_sld : float
-        The scattering length density of the solvent.
+    q : array_like
+        Scattering vector magnitude(s) in inverse Angstroms.
+    sld, sld_solvent : float
+        Scattering length densities of the sphere and solvent.
     radius : float
-        The radius of the sphere.
-    
-    Returns
-    -------
-    tuple of float
-        The integrated computed form factor (F) and form factor squared (F²).
+        Sphere radius in Angstroms.
+    **kwargs : dict
+        Extra parameters are ignored (lets callers pass a shared param dict).
     """
-    F = ctypes.c_double()
-    F2 = ctypes.c_double()
-    
-    _lib.compute_sphere_form_factor(q, radius, sld, solvent_sld, 
-                                     ctypes.byref(F), ctypes.byref(F2))
-    
-    return F.value, F2.value
+    q = np.atleast_1d(q).astype(float)
+    out = np.zeros_like(q)
+    f1, f2 = ctypes.c_double(), ctypes.c_double()
+    for i, q_val in enumerate(q):
+        _lib.Fq(q_val, ctypes.byref(f1), ctypes.byref(f2), sld, sld_solvent, radius)
+        out[i] = f2.value
+    return out
 ```
 
-## Step 5: Create __init__.py
+> **Tip:** accepting `**kwargs` lets the fitting layer pass one combined parameter
+> dictionary (form factor + structure factor params) to every model.
+
+## Step 5: Create `__init__.py`
 
 ```python
-# __init__.py
-"""Sphere form factor model for scattering analysis."""
+"""Sphere form factor model."""
+from .wrapper import compute_form_factor
+
+__all__ = ["compute_form_factor"]
 ```
 
-## Step 6: Update setup.py
-
-Add to the `run()` method in `BuildSharedLibraries` class:
-
-```python
-# Build sphere shared library
-self.build_shared_lib(
-    'sphere',
-    [
-        'src/form_factor/sphere/sphere.c'
-    ],
-    'src/form_factor/sphere'
-)
-```
-
-Update `package_data`:
-
-```python
-package_data={
-    'form_factor.core_shell_cylinder': ['*.so', '*.pyd', '*.dll'],
-    'form_factor.sphere': ['*.so', '*.pyd', '*.dll'],  # Add this line
-    'structure_factor.hayter_msa': ['*.so', '*.pyd', '*.dll'],
-},
-```
-
-## Step 7: Update utils.py
-
-Change the global variable to use your new model:
-
-```python
-FORM_FACTOR_MODEL = "sphere"  # Changed from "core_shell_cylinder"
-```
-
-## Step 8: Update form_factor() function in utils.py (if needed)
-
-You may need to update the `form_factor()` function signature in `utils.py` to match your model's parameters:
-
-```python
-def form_factor(q, sld, solvent_sld, radius):
-    """
-    Compute the form factor for the sphere model.
-    
-    Parameters
-    ----------
-    q : float
-        The scattering vector magnitude.
-    sld : float
-        The scattering length density of the sphere.
-    solvent_sld : float
-        The scattering length density of the solvent.
-    radius : float
-        The radius of the sphere.
-    
-    Returns
-    -------
-    tuple of float
-        The integrated computed form factor (F) and form factor squared (F²).
-    """
-    return compute_form_factor(q, sld, solvent_sld, radius)
-```
-
-## Step 9: Build and Install
+## Step 6: Build
 
 ```bash
-cd /workspace/core_shell_cylinder_project
-python setup.py build_py
-pip install -e .
+pip install -e .          # compiles libsas_core + every model, including yours
 ```
 
-## Step 10: Test
+The build system discovers any directory under `form_factors/` (or
+`structure_factors/`) that contains a `<name>.c` file. No edits to `setup.py`.
+
+## Step 7: Use it
 
 ```python
-from utils import form_factor
+import scatterbootstrap as sb
 
-# Test your new sphere form factor
-F, F2 = form_factor(q=0.1, sld=4.0, solvent_sld=6.0, radius=50.0)
-print(f"F = {F}, F² = {F2}")
+print(sb.list_form_factor_models())     # "sphere" now appears
+F2 = sb.form_factor(0.1, "sphere", sld=4e-6, sld_solvent=1e-6, radius=50)
+I = sb.intensity(0.1, scale=1.0, background=0.001,
+                 form_factor_model="sphere",
+                 sld=4e-6, sld_solvent=1e-6, radius=50)
+```
+
+## Step 8: Add a test
+
+Add a representative parameter set to `tests/conftest.py` so the parametrized
+smoke tests cover your model, then run the suite:
+
+```bash
+pytest
 ```
 
 ## Notes
 
-- The function signature of `compute_form_factor()` can vary between models
-- You may need to update the `form_factor()` and related functions in `utils.py` to match your model's parameters
-- For a completely different parameter set, consider creating model-specific wrappers
-- Make sure to handle edge cases (e.g., q → 0) in your C implementation
+- Export functions must **not** be `static`; on Windows the build system detects
+  and exports `Fq`/`Iq` automatically.
+- Structure factors expose `Iq(q, ...)` and a `compute_structure_factor(q, ...)`
+  wrapper instead.
+- List-valued parameters (e.g. per-shell SLDs) are supported transparently by the
+  fitting layer — see the `onion` and `core_multi_shell` models.
+- Always handle the `q -> 0` limit in the C kernel to avoid division by zero.

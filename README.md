@@ -1,6 +1,10 @@
-# Bootstrapping: Advanced Small-Angle Scattering Analysis
+# ScatterBootstrap: Advanced Small-Angle Scattering Analysis
 
-A comprehensive Python package for analyzing small-angle scattering (SAS) data with **14 form factor models** and **2 structure factor models**, featuring advanced bootstrapping techniques and high-performance cross-platform C extensions. All scattering models are adapted from [SasView](https://www.sasview.org/) with optimized implementations.
+[![CI](https://github.com/TobiasMKaufmann/ScatterBootstrap/actions/workflows/ci.yml/badge.svg)](https://github.com/TobiasMKaufmann/ScatterBootstrap/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
+
+A comprehensive Python package for analyzing small-angle scattering (SAS) data with **14 form factor models** and **2 structure factor models**, featuring residual-bootstrap uncertainty quantification and high-performance cross-platform C extensions. The scattering model kernels are adapted from [SasView](https://www.sasview.org/) (BSD-3-Clause).
 
 ## Features
 
@@ -40,8 +44,8 @@ A comprehensive Python package for analyzing small-angle scattering (SAS) data w
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/TobiasMKaufmann/echemes-bootstrapping.git
-cd echemes-bootstrapping
+git clone https://github.com/TobiasMKaufmann/ScatterBootstrap.git
+cd ScatterBootstrap
 ```
 
 ### 2. System Dependencies
@@ -112,28 +116,15 @@ source venv/bin/activate  # Linux/macOS
 venv\Scripts\activate     # Windows
 ```
 
-### 4. Install Python Dependencies
+### 4. Build and Install the Package
+
+The build system automatically detects your platform and compiler, compiles all 16
+C extensions (`libsas_core` plus 14 form factor and 2 structure factor models), and
+installs `scatterbootstrap` in editable mode:
 
 ```bash
 pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 5. Build and Install C Extensions
-
-The build system automatically detects your platform and compiler:
-
-**All Platforms:**
-```bash
-# Build all form factor and structure factor models
-python setup.py build_py
-
-# Verify successful build (should show all 14 form factors + 2 structure factors)
-ls src/form_factor/*/*.so       # Linux/macOS
-dir src\form_factor\*\*.pyd     # Windows
-
-# Optional: Install package in development mode
-pip install -e .
+pip install -e .[dev]
 ```
 
 **What Gets Built:**
@@ -145,16 +136,24 @@ pip install -e .
 - Automatic MSVC detection and configuration on Windows
 - Proper RPATH settings on Linux/macOS for library dependencies
 - Intelligent function export detection
-- Parallel compilation support
+- Automatic discovery of new models (no `setup.py` edits required)
+- **Parallel compilation** of the model extensions (one job per CPU core;
+  override with `SCATTERBOOTSTRAP_BUILD_JOBS=N`, or `=1` to build serially)
 
-### 6. Verify Installation
+You can verify the build directly:
+```bash
+ls src/scatterbootstrap/lib/*.so src/scatterbootstrap/form_factors/*/*.so src/scatterbootstrap/structure_factors/*/*.so   # Linux/macOS
+dir src\scatterbootstrap\lib\*.pyd src\scatterbootstrap\form_factors\*\*.pyd src\scatterbootstrap\structure_factors\*\*.pyd  # Windows
+```
+
+### 5. Verify Installation
 
 ```bash
-# Quick test of the build
-python src/utils.py
-
-# Should output scattering calculations and confirm all models loaded successfully
+python -m scatterbootstrap.core
 ```
+
+This runs a small built-in demo (fits a noisy sphere form factor) and prints the
+recovered parameters, confirming the package and all C extensions loaded correctly.
 
 ## Available Models
 
@@ -164,20 +163,20 @@ The package includes comprehensive form factor implementations for various parti
 
 | Model | Description | Key Parameters |
 |-------|-------------|----------------|
-| **sphere** | Homogeneous sphere | `radius`, `sld` |
-| **ellipsoid** | Prolate/oblate ellipsoid | `radius_polar`, `radius_equatorial`, `sld` |
-| **core_shell_cylinder** | Cylinder with shell coating | `radius`, `thickness`, `length`, `core_sld`, `shell_sld` |
-| **barbell** | Dumbbell-shaped particles | `radius_bell`, `radius`, `length` |
-| **core_multi_shell** | Multi-layer spherical shells | `radius`, `thickness[N]`, `sld[N]` |
-| **elliptical_cylinder** | Cylinder with elliptical cross-section | `radius_minor`, `axis_ratio`, `length` |
-| **fuzzy_sphere** | Sphere with fuzzy interface | `radius`, `fuzziness`, `sld` |
-| **lamellar_hg** | Head-group bilayer | `tail_length`, `head_length`, `sld_head`, `sld_tail` |
-| **linear_pearls** | Linear chain of spheres | `radius`, `num_pearls`, `edge_sep` |
-| **onion** | Multi-shell sphere (onion model) | `radius`, `thickness[N]`, `sld[N]` |
-| **polymer_micelle** | Star polymer micelle | `radius_core`, `radius_gyr`, `sld_core`, `sld_corona` |
-| **pringle** | Hyperbolic paraboloid | `radius`, `thickness`, `alpha`, `beta` |
-| **bcc_paracrystal** | Body-centered cubic lattice | `radius`, `dnn`, `d_factor` |
-| **fcc_paracrystal** | Face-centered cubic lattice | `radius`, `dnn`, `d_factor` |
+| **sphere** | Homogeneous sphere | `sld`, `sld_solvent`, `radius` |
+| **ellipsoid** | Prolate/oblate ellipsoid | `sld`, `sld_solvent`, `radius_polar`, `radius_equatorial` |
+| **core_shell_cylinder** | Cylinder with shell coating | `core_sld`, `shell_sld`, `solvent_sld`, `radius`, `thickness`, `length` |
+| **barbell** | Dumbbell-shaped particles | `sld`, `solvent_sld`, `radius_bell`, `radius`, `length` |
+| **core_multi_shell** | Multi-layer spherical shells | `core_sld`, `core_radius`, `solvent_sld`, `n_shells`, `sld_array[N]`, `thickness_array[N]` |
+| **elliptical_cylinder** | Cylinder with elliptical cross-section | `radius_minor`, `r_ratio`, `length`, `sld`, `solvent_sld` |
+| **fuzzy_sphere** | Sphere with fuzzy interface | `sld`, `sld_solvent`, `radius`, `fuzziness` |
+| **lamellar_hg** | Head-group bilayer | `length_tail`, `length_head`, `sld`, `sld_head`, `sld_solvent` |
+| **linear_pearls** | Linear chain of spheres | `radius`, `edge_sep`, `fp_num_pearls`, `pearl_sld`, `solvent_sld` |
+| **onion** | Multi-shell sphere (onion model) | `sld_core`, `radius_core`, `sld_solvent`, `n_shells`, `sld_in[N]`, `sld_out[N]`, `thickness[N]`, `A[N]` |
+| **polymer_micelle** | Star polymer micelle | `ndensity`, `v_core`, `v_corona`, `solvent_sld`, `core_sld`, `corona_sld`, `radius_core`, `rg`, `d_penetration`, `n_aggreg` |
+| **pringle** | Hyperbolic paraboloid | `radius`, `thickness`, `alpha`, `beta`, `sld`, `sld_solvent` |
+| **bcc_paracrystal** | Body-centered cubic lattice | `dnn`, `d_factor`, `radius`, `sld`, `solvent_sld` |
+| **fcc_paracrystal** | Face-centered cubic lattice | `dnn`, `d_factor`, `radius`, `sld`, `solvent_sld` |
 
 ### Structure Factors (2 Models)
 
@@ -185,16 +184,19 @@ Interparticle interference effects for concentrated systems:
 
 | Model | Description | Key Parameters |
 |-------|-------------|----------------|
-| **hayter_msa** | Hayter-Penfold MSA for charged particles | `radius_effective`, `vol_frac`, `charge`, `temp`, `salt_conc`, `dielectric` |
-| **hardsphere** | Hard sphere repulsion | `radius_effective`, `vol_frac` |
+| **hayter_msa** | Hayter-Penfold MSA for charged particles | `radius_effective`, `volfraction`, `charge`, `temperature`, `saltconc`, `dielectconst` |
+| **hardsphere** | Hard sphere repulsion | `radius_effective`, `volfraction` |
 
 ### Model Architecture
 
 All models follow a modular design:
-- **C Implementation**: High-performance kernel in `src/form_factor/<model>/<model>.c`
-- **Python Wrapper**: Easy-to-use interface in `src/form_factor/<model>/wrapper.py`
-- **Shared Core**: Common functions (Bessel, quadrature) in `src/lib/libsas_core`
-- **Automatic Loading**: Models dynamically loaded based on available compiled libraries
+- **C Implementation**: High-performance kernel in `src/scatterbootstrap/form_factors/<model>/<model>.c`
+- **Python Wrapper**: Easy-to-use interface in `src/scatterbootstrap/form_factors/<model>/wrapper.py`
+- **Shared Core**: Common functions (Bessel, quadrature) in `src/scatterbootstrap/lib/libsas_core`
+- **Explicit Selection**: Models are selected by name, passed as `form_factor_model="..."` /
+  `structure_factor_model="..."` to `form_factor()`, `structure_factor()`, `intensity()`,
+  `fit_data()`, etc. Use `scatterbootstrap.list_form_factor_models()` and
+  `scatterbootstrap.list_structure_factor_models()` to see all available names.
 
 **Adding New Models**: See the "Implementing Custom Models" section below for a complete guide.
 
@@ -202,18 +204,17 @@ All models follow a modular design:
 
 ### Basic Usage Example
 
-The framework uses a **modular, dictionary-based** approach for maximum flexibility. You can work with any of the 14 form factor models by simply changing the model configuration in `src/utils.py`.
+Models are selected by **name**, passed directly as arguments to `form_factor()`,
+`structure_factor()`, and `intensity()` — no source code edits required.
 
 ```python
-import sys
-sys.path.insert(0, 'src')
-from utils import form_factor, structure_factor, intensity
+from scatterbootstrap import form_factor, structure_factor, intensity
 import numpy as np
 
 # Define scattering parameters as keyword arguments
 q = 0.1  # scattering vector (Å⁻¹)
 
-# Example: Barbell form factor parameters (default model)
+# Barbell form factor parameters
 model_params = {
     "sld": 4.0e-6,           # barbell scattering length density
     "solvent_sld": 1.0e-6,   # solvent scattering length density
@@ -233,40 +234,48 @@ structure_params = {
 }
 
 # Calculate form factor (returns F² directly)
-F2 = form_factor(q, **model_params)
+F2 = form_factor(q, "barbell", **model_params)
 
 # Calculate structure factor
-S_q = structure_factor(q, **structure_params)
+S_q = structure_factor(q, "hayter_msa", **structure_params)
 
 # Total scattering intensity with scaling
 scale = 1.0
 background = 0.001
-I_q = intensity(q, scale, background, **model_params, **structure_params)
+I_q = intensity(q, scale, background, "barbell", "hayter_msa", **model_params, **structure_params)
 
 print(f"Form Factor F²(q): {F2:.6e}")
 print(f"Structure Factor S(q): {S_q:.4f}")
 print(f"Total Intensity I(q): {I_q:.6e}")
 ```
 
-**Switching Models**: To use a different form factor (e.g., `sphere`, `core_shell_cylinder`, `ellipsoid`), edit the configuration at the top of `src/utils.py`:
+**Switching Models**: To use a different form factor (e.g., `sphere`, `core_shell_cylinder`,
+`ellipsoid`) or structure factor (`hardsphere`), simply pass a different model name and the
+matching parameters:
 
 ```python
-# In src/utils.py, lines 73-75
-FORM_FACTOR_MODEL = "sphere"  # Change to any of 14 available models
-STRUCTURE_FACTOR_MODEL = "hayter_msa"  # or "hardsphere"
+from scatterbootstrap import form_factor, list_form_factor_models, list_structure_factor_models
+
+print(list_form_factor_models())       # all 14 available form factor model names
+print(list_structure_factor_models())  # all 2 available structure factor model names
+
+F2 = form_factor(q, "sphere", sld=4.0e-6, sld_solvent=1.0e-6, radius=50.0)
 ```
 
-Then adjust the `initial_params` and `fit_params` dictionaries (lines 213-240) to match your chosen model's parameters.
+Each model's required parameters are documented in its wrapper module, e.g.
+`scatterbootstrap.form_factors.sphere.wrapper.compute_form_factor`.
 
 ### Data Analysis Workflow
 
 The framework provides a complete pipeline for fitting experimental data and quantifying uncertainties through bootstrap resampling.
 
 ```python
-import sys
-sys.path.insert(0, 'src')
-from utils import fit_data, residuals_bootstrap, compute_confidence_intervals, plot_fit_data
+from scatterbootstrap import fit_data, residuals_bootstrap, compute_confidence_intervals, plot_fit_data
 import numpy as np
+
+# Choose the form factor and (optional) structure factor models by name
+FORM_FACTOR_MODEL = "barbell"
+STRUCTURE_FACTOR_MODEL = "hayter_msa"  # set to None to fit form factor only
 
 # Load experimental data
 q_exp = np.loadtxt('path/to/data.dat', usecols=0)  # q values (Å⁻¹)
@@ -310,8 +319,10 @@ fit_params = {
 # Step 1: Fit experimental data
 print("Fitting data...")
 fitted_params, covariance, param_order = fit_data(
-    q_exp, I_exp, 
-    initial_params=initial_params, 
+    q_exp, I_exp,
+    form_factor_model=FORM_FACTOR_MODEL,
+    structure_factor_model=STRUCTURE_FACTOR_MODEL,
+    initial_params=initial_params,
     fit_params=fit_params
 )
 
@@ -330,11 +341,14 @@ for key, value in fitted_dict.items():
 # Step 2: Bootstrap uncertainty quantification
 print("\nPerforming bootstrap analysis...")
 bootstrap_results = residuals_bootstrap(
-    q_exp, I_exp, 
+    q_exp, I_exp,
+    form_factor_model=FORM_FACTOR_MODEL,
+    structure_factor_model=STRUCTURE_FACTOR_MODEL,
     all_params=fitted_dict,      # Use fitted values as starting point
     fit_params=fit_params,
     n_iterations=1000,           # Increase for better statistics
-    structure_factor=True    # Set False if no structure factor
+    rng=42,                      # Optional seed for reproducibility
+    n_jobs=-1,                   # Use all CPU cores (1 = serial, N = N processes)
 )
 
 # Step 3: Compute confidence intervals
@@ -342,17 +356,18 @@ confidence_intervals = compute_confidence_intervals(bootstrap_results, confidenc
 
 print("\n95% Confidence Intervals:")
 for param, (lower, upper) in confidence_intervals.items():
-    mean_val = np.mean(bootstrap_results[param])
+    mean_val = np.mean([r[param] for r in bootstrap_results])
     print(f"  {param}: {mean_val:.6e} [{lower:.6e}, {upper:.6e}]")
 
 # Step 4: Visualize results
 print("\nGenerating plots...")
 plot_fit_data(
-    q_exp, I_exp, 
-    all_params=fitted_dict,
+    q_exp, I_exp,
+    params=fitted_dict,
+    form_factor_model=FORM_FACTOR_MODEL,
+    structure_factor_model=STRUCTURE_FACTOR_MODEL,
     title="Barbell Model Fit",
     folder="./results",          # Output directory
-    structure_factor=True
 )
 
 print("Analysis complete! Results saved to ./results/")
@@ -361,85 +376,136 @@ print("Analysis complete! Results saved to ./results/")
 **Key Functions:**
 
 - **`fit_data()`**: Non-linear least squares fitting using scipy's Levenberg-Marquardt algorithm
-- **`residuals_bootstrap()`**: Resamples residuals to quantify parameter uncertainties
+- **`residuals_bootstrap()`**: Resamples residuals to quantify parameter uncertainties (parallel via `n_jobs`)
+- **`fit_bootstrap_many()`**: Fits + bootstraps a whole collection of datasets in parallel
 - **`compute_confidence_intervals()`**: Calculates percentile-based confidence intervals
-- **`plot_fit_data()`**: Creates publication-ready plots with fit overlays and residuals
+- **`plot_fit_data()`**: Creates publication-ready plots with fit overlays
+
+### Batch Processing Many Datasets
+
+`fit_bootstrap_many()` runs the full **fit → bootstrap → confidence interval**
+pipeline for many datasets and parallelizes the work across CPU cores. It
+budgets cores automatically (parallelizing across datasets, or — for a single
+dataset — across that dataset's bootstrap) so it never oversubscribes, and it is
+reproducible: a given `rng` seed yields the same result regardless of `n_jobs`.
+
+```python
+import numpy as np
+import scatterbootstrap as sb
+
+# name -> (q, I) for each measurement
+datasets = {
+    "sample_A": (q_A, I_A),
+    "sample_B": (q_B, I_B),
+    "sample_C": (q_C, I_C),
+}
+
+initial_params = {"scale": 1.0, "background": 0.001,
+                  "sld": 4e-6, "sld_solvent": 1e-6, "radius": 50.0}
+fit_params = {"scale": True, "background": True, "sld": False,
+              "sld_solvent": False, "radius": True}
+
+results = sb.fit_bootstrap_many(
+    datasets,
+    form_factor_model="sphere",
+    initial_params=initial_params,   # or a {name: params} mapping per dataset
+    fit_params=fit_params,
+    n_iterations=1000,
+    rng=42,
+    n_jobs=-1,                       # use all cores across datasets
+)
+
+for name, res in results.items():
+    lo, hi = res["confidence_intervals"]["radius"]
+    print(f"{name}: radius = {res['fitted_params']['radius']:.2f}  95% CI [{lo:.2f}, {hi:.2f}]")
+```
+
+Each `results[name]` is a dict with `fitted_params`, `param_order`,
+`covariance`, `confidence_intervals`, and (unless `keep_ensembles=False`) the
+full `bootstrap` ensemble. Pass `initial_params`/`fit_params`/`bounds` either as
+a single shared config or as a `{name: ...}` mapping for per-dataset settings.
+
+> **macOS/Windows:** call `fit_bootstrap_many` (and `residuals_bootstrap` with
+> `n_jobs != 1`) from inside an `if __name__ == "__main__":` guard, as required
+> by Python's `multiprocessing`. On Linux this is not needed.
 
 **Performance Tips:**
 
 - Start with `n_iterations=100` for testing, increase to 1000-5000 for final analysis
+- **Parallelize the bootstrap** with `n_jobs`: the refits are independent, so
+  `n_jobs=-1` (all cores) gives a near-linear speedup. Results are identical to a
+  serial run for the same `rng` seed, regardless of `n_jobs`.
 - Use the cluster computing framework (`src/cluster/`) for large bootstrap analyses
-- Set `structure_factor=False` if structure factor effects are negligible
+  (it automatically sets `n_jobs` from `$SLURM_CPUS_PER_TASK`)
+- Set `structure_factor_model=None` if structure factor effects are negligible
 
 ## Project Structure
 
 ```
-echemes-bootstrapping/
+ScatterBootstrap/
 ├── src/
-│   ├── utils.py                           # Main analysis functions (START HERE)
+│   ├── scatterbootstrap/                  # The installable Python package
+│   │   ├── __init__.py                    # Public API (START HERE)
+│   │   ├── core.py                        # Main analysis functions
+│   │   ├── _lib_finder.py                 # Locates compiled .so/.pyd/.dll files
+│   │   │
+│   │   ├── lib/                           # Shared C library components
+│   │   │   ├── libsas_core.so/.pyd/.dll   # Compiled shared library
+│   │   │   ├── sas_J1.c/h                 # Bessel J1 functions
+│   │   │   ├── sas_J0.c/h                 # Bessel J0 functions
+│   │   │   ├── sas_JN.c/h                 # Bessel Jn functions
+│   │   │   ├── sas_3j1x_x.c               # 3*j1(x)/x function
+│   │   │   ├── gauss76.c/h                # 76-point Gauss quadrature
+│   │   │   ├── gauss150.c/h               # 150-point Gauss quadrature
+│   │   │   ├── polevl.c/h                 # Polynomial evaluation
+│   │   │   ├── utils.c/h                  # Math utilities (SINCOS, etc.)
+│   │   │   └── sas_core.h                 # Common header and constants
+│   │   │
+│   │   ├── form_factors/                   # Form factor models (14 models)
+│   │   │   ├── __init__.py
+│   │   │   ├── sphere/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── wrapper.py             # Python interface
+│   │   │   │   ├── sphere.c               # C implementation
+│   │   │   │   └── sphere.so/.pyd/.dll    # Compiled library
+│   │   │   ├── ellipsoid/                 # [Same structure]
+│   │   │   ├── core_shell_cylinder/       # [Same structure]
+│   │   │   ├── barbell/                   # [Same structure]
+│   │   │   ├── core_multi_shell/          # [Same structure]
+│   │   │   ├── elliptical_cylinder/       # [Same structure]
+│   │   │   ├── fuzzy_sphere/              # [Same structure]
+│   │   │   ├── lamellar_hg/               # [Same structure]
+│   │   │   ├── linear_pearls/             # [Same structure]
+│   │   │   ├── onion/                     # [Same structure]
+│   │   │   ├── polymer_micelle/           # [Same structure]
+│   │   │   ├── pringle/                   # [Same structure]
+│   │   │   ├── bcc_paracrystal/           # [Same structure + sphere_form.c]
+│   │   │   └── fcc_paracrystal/           # [Same structure + sphere_form.c]
+│   │   │
+│   │   └── structure_factors/              # Structure factor models (2 models)
+│   │       ├── __init__.py
+│   │       ├── hayter_msa/
+│   │       │   ├── __init__.py
+│   │       │   ├── wrapper.py             # Python interface
+│   │       │   ├── hayter_msa.c           # C implementation
+│   │       │   └── hayter_msa.so/.pyd/.dll # Compiled library
+│   │       └── hardsphere/                # [Same structure]
+│   │
 │   ├── data_extraction_functions.py       # Bootstrap results analysis tools
 │   ├── data_extraction_example.py         # Usage examples for data extraction
 │   ├── fitted_params_table.py             # Parameter validation utilities
 │   ├── plot_comparisons.py                # Visualization and comparison tools
 │   ├── initial_params.json                # Default parameter configurations
 │   │
-│   ├── lib/                               # Shared C library components
-│   │   ├── libsas_core.so/.pyd/.dll       # Compiled shared library
-│   │   ├── libsas_core.lib                # Import library (Windows)
-│   │   ├── sas_J1.c/h                     # Bessel J1 functions
-│   │   ├── sas_J0.c/h                     # Bessel J0 functions
-│   │   ├── sas_JN.c/h                     # Bessel Jn functions
-│   │   ├── sas_3j1x_x.c                   # 3*j1(x)/x function
-│   │   ├── gauss76.c/h                    # 76-point Gauss quadrature
-│   │   ├── gauss150.c/h                   # 150-point Gauss quadrature
-│   │   ├── polevl.c/h                     # Polynomial evaluation
-│   │   ├── utils.c/h                      # Math utilities (SINCOS, etc.)
-│   │   └── sas_core.h                     # Common header and constants
-│   │
-│   ├── form_factor/                       # Form factor models (14 models)
-│   │   ├── __init__.py
-│   │   ├── sphere/
-│   │   │   ├── __init__.py
-│   │   │   ├── wrapper.py                 # Python interface
-│   │   │   ├── sphere.c                   # C implementation
-│   │   │   └── sphere.so/.pyd/.dll        # Compiled library
-│   │   ├── ellipsoid/                     # [Same structure]
-│   │   ├── core_shell_cylinder/           # [Same structure]
-│   │   ├── barbell/                       # [Same structure]
-│   │   ├── core_multi_shell/              # [Same structure]
-│   │   ├── elliptical_cylinder/           # [Same structure]
-│   │   ├── fuzzy_sphere/                  # [Same structure]
-│   │   ├── lamellar_hg/                   # [Same structure]
-│   │   ├── linear_pearls/                 # [Same structure]
-│   │   ├── onion/                         # [Same structure]
-│   │   ├── polymer_micelle/               # [Same structure]
-│   │   ├── pringle/                       # [Same structure]
-│   │   ├── bcc_paracrystal/               # [Same structure + sphere_form.c]
-│   │   └── fcc_paracrystal/               # [Same structure + sphere_form.c]
-│   │
-│   ├── structure_factor/                  # Structure factor models (2 models)
-│   │   ├── __init__.py
-│   │   ├── hayter_msa/
-│   │   │   ├── __init__.py
-│   │   │   ├── wrapper.py                 # Python interface
-│   │   │   ├── hayter_msa.c               # C implementation
-│   │   │   └── hayter_msa.so/.pyd/.dll    # Compiled library
-│   │   └── hardsphere/                    # [Same structure]
-│   │
-│   ├── cluster/                           # ETH HPC cluster computing framework
-│   │   ├── README.md                      # Complete cluster workflow guide
-│   │   ├── process_data.py                # Batch bootstrap processing
-│   │   ├── submit_job.sh                  # SLURM job submission script
-│   │   ├── setup_cluster.py               # Dependency installation for cluster
-│   │   ├── transfer.sh                    # File transfer and job management
-│   │   └── requirements_cluster.txt       # Minimal cluster dependencies
-│   │
-│   └── old/                               # Archived/legacy code
+│   └── cluster/                           # ETH HPC cluster computing framework
+│       ├── README.md                      # Complete cluster workflow guide
+│       ├── process_data.py                # Batch bootstrap processing
+│       ├── submit_job.sh                  # SLURM job submission script
+│       ├── setup_cluster.py               # Dependency installation for cluster
+│       ├── transfer.sh                    # File transfer and job management
+│       └── requirements_cluster.txt       # Minimal cluster dependencies
 │
-├── build/                                 # Build output directory
-│   └── lib/                               # Compiled Python modules
-│       ├── form_factor/                   # Built form factors
-│       └── structure_factor/              # Built structure factors
+├── tests/                                  # pytest test suite
 │
 ├── requirements.txt                       # Python dependencies
 ├── setup.py                               # Cross-platform build system with MSVC support
@@ -447,17 +513,16 @@ echemes-bootstrapping/
 ├── MANIFEST.in                            # Package manifest for distribution
 ├── LICENSE                                # MIT License
 ├── CHANGELOG.md                           # Version history and changes
-├── RELEASE_NOTES_v0.3.0.md               # Recent release notes
 ├── EXAMPLE_ADDING_NEW_MODEL.md           # Guide for adding new models
 └── README.md                              # This file
 ```
 
 **Key Directories:**
-- **`src/lib/`**: Shared C library used by all models
-- **`src/form_factor/`**: Individual form factor implementations (each in its own subdirectory)
-- **`src/structure_factor/`**: Structure factor implementations
+- **`src/scatterbootstrap/lib/`**: Shared C library used by all models
+- **`src/scatterbootstrap/form_factors/`**: Individual form factor implementations (each in its own subdirectory)
+- **`src/scatterbootstrap/structure_factors/`**: Structure factor implementations
 - **`src/cluster/`**: HPC cluster tools for large-scale analysis
-- **`build/lib/`**: Compiled Python packages (created during installation)
+- **`tests/`**: Automated test suite (run with `pytest`)
 
 ## Cluster Computing
 
@@ -558,8 +623,8 @@ error LNK2001: unresolved external symbol
 ```
 **Solution**: 
 - Ensure Windows SDK is installed (included with Build Tools)
-- Verify `libsas_core.lib` and `libsas_core.pyd` exist in `src/lib/`
-- Rebuild: `python setup.py clean --all && python setup.py build_py`
+- Verify `libsas_core.lib` and `libsas_core.pyd` exist in `src/scatterbootstrap/lib/`
+- Rebuild: `python setup.py clean --all && pip install -e .`
 
 #### 3. Linux: HDF5 Libraries Missing
 ```
@@ -595,8 +660,8 @@ pip install --user -e .
 ImportError: cannot import name 'form_factor'
 ```
 **Solution**: 
-- Verify C extensions built: `ls src/form_factor/*/sphere.so` (Linux/macOS) or `dir src\form_factor\sphere\*.pyd` (Windows)
-- Rebuild: `python setup.py build_py`
+- Verify C extensions built: `ls src/scatterbootstrap/form_factors/sphere/*.so` (Linux/macOS) or `dir src\scatterbootstrap\form_factors\sphere\*.pyd` (Windows)
+- Rebuild: `pip install -e .`
 - Check for compilation errors in build output
 
 #### 7. Windows: UNC Path Errors
@@ -609,23 +674,19 @@ CMD.exe does not support UNC paths as current directories
 
 **Check Build Status:**
 ```bash
-# Verify all models compiled
-python -c "from src.form_factor.sphere import wrapper; print('Sphere OK')"
-python -c "from src.structure_factor.hayter_msa import wrapper; print('Hayter-MSA OK')"
+# Verify the package imports and lists all compiled models
+python -c "import scatterbootstrap as sb; print(sb.list_form_factor_models()); print(sb.list_structure_factor_models())"
 
 # List built libraries
-ls src/lib/*.so src/form_factor/*/*.so src/structure_factor/*/*.so     # Linux/macOS
-dir src\lib\*.pyd src\form_factor\*\*.pyd src\structure_factor\*\*.pyd # Windows
+ls src/scatterbootstrap/lib/*.so src/scatterbootstrap/form_factors/*/*.so src/scatterbootstrap/structure_factors/*/*.so     # Linux/macOS
+dir src\scatterbootstrap\lib\*.pyd src\scatterbootstrap\form_factors\*\*.pyd src\scatterbootstrap\structure_factors\*\*.pyd # Windows
 ```
 
 **Clean and Rebuild:**
 ```bash
-# Remove all build artifacts
-rm -rf build/ src/**/*.so src/**/*.pyd src/**/*.o src/**/*.obj  # Linux/macOS
-del /s /q build src\*.so src\*.pyd src\*.o src\*.obj            # Windows
-
-# Rebuild from scratch
-python setup.py build_py
+# Remove compiled artifacts, then rebuild from scratch
+python setup.py clean --all
+pip install -e .
 ```
 
 ### Performance Notes
@@ -634,379 +695,143 @@ python setup.py build_py
 - For large datasets, consider using the cluster processing scripts in `src/cluster/`
 - Bootstrap analysis can be computationally intensive; start with smaller sample sizes for testing
 
-## Development and Contributing
+## Testing
 
-### Running Tests
+The package ships with an automated `pytest` suite that builds and exercises
+every compiled model plus the fitting and bootstrap pipeline:
 
 ```bash
-python -m pytest tests/  # If tests are available
-# OR verify manually:
-python src/main.py
+pip install -e .[dev]
+pytest                              # run all tests
+pytest --cov=scatterbootstrap       # with a coverage report
 ```
 
-### Building Documentation
+## Development and Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the full
+guide and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
+Bug reports and questions go to the
+[issue tracker](https://github.com/TobiasMKaufmann/ScatterBootstrap/issues).
 
 ```bash
-# If sphinx is installed
-cd docs/
-make html
+# Format and lint before opening a pull request
+black src/scatterbootstrap tests
+flake8 src/scatterbootstrap tests --max-line-length=100 --extend-ignore=E203,W503
 ```
 
 ## Implementing Custom Models
 
-The framework is designed for easy extensibility. You can add new scattering models by following the established pattern used for existing models. The key is understanding the **modular architecture** and **dictionary-based parameter system**.
+Models are **auto-discovered and auto-compiled**: dropping a new model directory
+into the package is all that is required — no edits to `setup.py` or `core.py`.
 
-### Architecture Overview
+### Add a form factor in four steps
 
-Each model consists of:
+1. **Create the directory** `src/scatterbootstrap/form_factors/<name>/`
+   (use `structure_factors/` for a structure factor) containing:
+   - `<name>.c` and `<name>.h` — the C kernel,
+   - `wrapper.py` — the thin Python interface,
+   - `__init__.py`.
 
-1. **C Implementation** (`model.c`): High-performance scattering calculations
-2. **Python Wrapper** (`wrapper.py`): Python interface using ctypes/cffi
-3. **Configuration** (`utils.py`): Model selection and parameter definitions
-4. **Parameter Dictionaries**: `initial_params` and `fit_params` in `utils.py`
+2. **Write the C kernel.** Form factor kernels expose an `Fq(...)` function and
+   may reuse the shared numerical core (`#include "../../lib/sas_core.h"` for
+   Bessel functions, Gauss–Legendre quadrature, etc.). Structure factor kernels
+   expose an `Iq(...)` function. Keep the exported functions non-`static`.
 
-### Step-by-Step: Adding a New Form Factor Model
+   ```c
+   /* sphere.c — adapted from SasView (https://www.sasview.org/) */
+   #include "../../lib/sas_core.h"
 
-Let's walk through adding a hypothetical "cylinder" model:
+   void Fq(double q, double *f1, double *f2,
+           double sld, double sld_solvent, double radius) {
+       const double bes = sas_3j1x_x(q * radius);
+       const double contrast = sld - sld_solvent;
+       const double volume = M_4PI_3 * radius * radius * radius;
+       const double fq = contrast * volume * bes;
+       *f1 = 1.0e-2 * fq;            /* <F>   */
+       *f2 = 1.0e-4 * fq * fq;       /* <F^2> */
+   }
+   ```
 
-#### 1. Create Model Directory Structure
+3. **Write `wrapper.py`** exposing `compute_form_factor(q, **params)` (or
+   `compute_structure_factor`). Use `find_library` to locate the compiled binary
+   in a platform-independent way:
 
-```bash
-mkdir -p src/form_factor/cylinder
-cd src/form_factor/cylinder
-```
+   ```python
+   import ctypes, os
+   import numpy as np
+   from ..._lib_finder import find_library
 
-#### 2. Implement C Code (`cylinder.c`)
+   _lib = ctypes.CDLL(find_library("sphere", os.path.dirname(__file__)))
+   _lib.Fq.restype = None
+   _lib.Fq.argtypes = [ctypes.c_double, ctypes.POINTER(ctypes.c_double),
+                       ctypes.POINTER(ctypes.c_double),
+                       ctypes.c_double, ctypes.c_double, ctypes.c_double]
 
-Create `src/form_factor/cylinder/cylinder.c`:
+   def compute_form_factor(q, sld, sld_solvent, radius, **kwargs):
+       q = np.atleast_1d(q).astype(float)
+       out = np.zeros_like(q)
+       f1, f2 = ctypes.c_double(), ctypes.c_double()
+       for i, qv in enumerate(q):
+           _lib.Fq(qv, ctypes.byref(f1), ctypes.byref(f2), sld, sld_solvent, radius)
+           out[i] = f2.value
+       return out
+   ```
 
-```c
-/*
- * Cylinder form factor implementation
- * Adapted from SasView (https://www.sasview.org/)
- */
+   `__init__.py`:
 
-#include "../../lib/sas_core.h"
-#include <math.h>
+   ```python
+   from .wrapper import compute_form_factor
+   __all__ = ["compute_form_factor"]
+   ```
 
-// Function to compute cylinder form factor squared
-double Iq(double q,
-          double sld,
-          double solvent_sld,
-          double radius,
-          double length)
-{
-    const double contrast = sld - solvent_sld;
-    const double volume = M_PI * radius * radius * length;
-    
-    // Simplified cylinder form factor (averaged over orientations)
-    const double qr = q * radius;
-    const double ql = q * length / 2.0;
-    
-    double form_factor;
-    if (qr < 1e-6 && ql < 1e-6) {
-        form_factor = 1.0;
-    } else {
-        // Use Bessel J1 from libsas_core
-        const double besarg = 2.0 * sas_J1c(qr);  // 2*J1(x)/x
-        const double sinc = (ql == 0.0) ? 1.0 : sin(ql) / ql;
-        form_factor = besarg * besarg * sinc * sinc;
-    }
-    
-    return 1.0e-4 * contrast * contrast * volume * volume * form_factor;
-}
+4. **Rebuild and test.** `pip install -e .` compiles the new kernel, and the
+   model is immediately available by name:
 
-// Volume calculation (useful for structure factor scaling)
-double form_volume(double radius, double length)
-{
-    return M_PI * radius * radius * length;
-}
+   ```python
+   import scatterbootstrap as sb
+   print(sb.list_form_factor_models())          # your model now appears
+   sb.form_factor(0.1, "<name>", sld=4e-6, sld_solvent=1e-6, radius=50)
+   ```
 
-// Effective radius for structure factor
-double radius_effective(int mode, double radius, double length)
-{
-    // Mode 1: radius of a sphere with same volume
-    if (mode == 1) {
-        return pow(0.75 * radius * radius * length, 1.0/3.0);
-    }
-    // Default: use cylinder radius
-    return radius;
-}
-```
+   Add a representative parameter set to `tests/conftest.py` so the smoke tests
+   cover your model, then run `pytest`.
 
-#### 3. Create Python Wrapper (`wrapper.py`)
+### Design principles
 
-Create `src/form_factor/cylinder/wrapper.py`:
+1. **Modular C libraries** — each model is a separate shared library.
+2. **Shared core** — reuse `libsas_core` for Bessel functions and quadrature.
+3. **Uniform interface** — every wrapper exposes a `compute_*` function taking
+   `q` and `**params`.
+4. **Name-based selection** — models are chosen at call time, never by editing
+   source.
+5. **Auto-discovery** — the build system finds and compiles all models.
 
-```python
-"""
-Python wrapper for cylinder form factor C library.
-"""
-
-import os
-import sys
-import ctypes
-import platform
-
-def _load_library():
-    """Load the compiled C library for the current platform."""
-    lib_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Determine library extension
-    if platform.system() == "Windows":
-        lib_name = "cylinder.pyd"
-    elif platform.system() == "Darwin":
-        lib_name = "cylinder.so"
-    else:
-        lib_name = "cylinder.so"
-    
-    lib_path = os.path.join(lib_dir, lib_name)
-    
-    if not os.path.exists(lib_path):
-        raise FileNotFoundError(
-            f"Compiled library not found at {lib_path}. "
-            f"Please run 'python setup.py build_py' first."
-        )
-    
-    try:
-        lib = ctypes.CDLL(lib_path)
-    except OSError as e:
-        raise OSError(f"Failed to load library {lib_path}: {e}")
-    
-    # Define function signatures
-    lib.Iq.argtypes = [
-        ctypes.c_double,  # q
-        ctypes.c_double,  # sld
-        ctypes.c_double,  # solvent_sld
-        ctypes.c_double,  # radius
-        ctypes.c_double   # length
-    ]
-    lib.Iq.restype = ctypes.c_double
-    
-    lib.form_volume.argtypes = [
-        ctypes.c_double,  # radius
-        ctypes.c_double   # length
-    ]
-    lib.form_volume.restype = ctypes.c_double
-    
-    return lib
-
-# Load library on import
-_lib = _load_library()
-
-def compute_form_factor(q, sld, solvent_sld, radius, length, **kwargs):
-    """
-    Compute cylinder form factor squared.
-    
-    Parameters
-    ----------
-    q : float
-        Scattering vector magnitude (Å⁻¹)
-    sld : float
-        Cylinder scattering length density (Å⁻²)
-    solvent_sld : float
-        Solvent scattering length density (Å⁻²)
-    radius : float
-        Cylinder radius (Å)
-    length : float
-        Cylinder length (Å)
-    **kwargs : dict
-        Additional ignored parameters for compatibility
-    
-    Returns
-    -------
-    float
-        Form factor squared |F(q)|²
-    """
-    return _lib.Iq(q, sld, solvent_sld, radius, length)
-
-def compute_volume(radius, length):
-    """Compute cylinder volume."""
-    return _lib.form_volume(radius, length)
-```
-
-Create `src/form_factor/cylinder/__init__.py`:
-
-```python
-"""Cylinder form factor model."""
-from .wrapper import compute_form_factor, compute_volume
-__all__ = ['compute_form_factor', 'compute_volume']
-```
-
-#### 4. Update Build System (`setup.py`)
-
-The build system automatically detects new models, but you can verify by checking `setup.py`:
-
-```python
-# In setup.py, the FORM_FACTOR_MODELS list should include:
-FORM_FACTOR_MODELS = [
-    # ... existing models ...
-    "cylinder",  # Your new model
-]
-```
-
-Most likely, you don't need to modify `setup.py` as it auto-discovers models in `src/form_factor/`.
-
-#### 5. Configure Model in `utils.py`
-
-Edit `src/utils.py` to use your new model:
-
-```python
-# Line ~73: Change model configuration
-FORM_FACTOR_MODEL = "cylinder"
-STRUCTURE_FACTOR_MODEL = "hayter_msa"  # or "hardsphere" or None
-
-# Lines ~213-240: Update parameter dictionaries
-form_factor_for_fitting = np.vectorize(
-    form_factor_2, 
-    excluded=['scale', 'background', 'sld', 'solvent_sld', 'radius', 'length']
-)
-
-intensity_for_fitting = np.vectorize(
-    intensity, 
-    excluded=['scale', 'background', 'sld', 'solvent_sld', 'radius', 'length',
-              'radius_effective', 'volfraction', 'charge', 'temperature', 
-              'saltconc', 'dielectconst']
-)
-
-initial_params = {
-    "scale": 1.0,
-    "background": 0.001,
-    "sld": 4.0e-6,
-    "solvent_sld": 1.0e-6,
-    "radius": 15.0,        # Cylinder radius
-    "length": 50.0,        # Cylinder length
-    # Structure factor parameters (if needed)
-    "radius_effective": 20.0,
-    "volfraction": 0.1,
-    "charge": 25.0,
-    "temperature": 300.0,
-    "saltconc": 0.1,
-    "dielectconst": 78.3
-}
-
-fit_params = {
-    "scale": True,
-    "background": True,
-    "sld": True,
-    "solvent_sld": False,
-    "radius": True,
-    "length": True,
-    "radius_effective": True,
-    "volfraction": True,
-    "charge": True,
-    "temperature": False,
-    "saltconc": True,
-    "dielectconst": False
-}
-```
-
-#### 6. Build and Test
-
-```bash
-# Build the new model
-python setup.py build_py
-
-# Verify compilation
-ls src/form_factor/cylinder/*.so     # Linux/macOS
-dir src\form_factor\cylinder\*.pyd   # Windows
-
-# Test the model
-python -c "from src.form_factor.cylinder import wrapper; print('Cylinder model OK')"
-
-# Run full test
-python src/utils.py
-```
-
-### Key Design Principles
-
-1. **Modular C Libraries**: Each model is a separate shared library (`.so`/`.pyd`/`.dll`)
-2. **Shared Core Functions**: Use `libsas_core` for Bessel functions, quadrature, etc.
-3. **Consistent Interfaces**: All wrappers expose `compute_form_factor(q, **kwargs)`
-4. **Dictionary-Driven**: Parameters passed as `**kwargs` for maximum flexibility
-5. **Auto-Discovery**: Build system finds and compiles all models automatically
-
-### Adding a New Structure Factor
-
-The process is identical, but place files in `src/structure_factor/<model_name>/`:
-
-1. Create `model.c` with `Iq(q, radius_effective, volfraction, ...)` function
-2. Create `wrapper.py` exposing `compute_structure_factor(q, **kwargs)`
-3. Update `STRUCTURE_FACTOR_MODEL` in `utils.py`
-4. Build with `python setup.py build_py`
-
-### Testing Your Model
-
-Create a simple test script:
-
-```python
-import sys
-sys.path.insert(0, 'src')
-from utils import form_factor, intensity
-import numpy as np
-
-# Test form factor
-q_vals = np.logspace(-2, 0, 50)
-params = {
-    "sld": 4.0e-6,
-    "solvent_sld": 1.0e-6,
-    "radius": 15.0,
-    "length": 50.0
-}
-
-for q in q_vals[:5]:
-    F2 = form_factor(q, **params)
-    print(f"q={q:.4f}: F²={F2:.6e}")
-
-# Test full intensity with structure factor
-full_params = {
-    **params,
-    "radius_effective": 20.0,
-    "volfraction": 0.1,
-    "charge": 25.0,
-    "temperature": 300.0,
-    "saltconc": 0.1,
-    "dielectconst": 78.3
-}
-
-I_q = intensity(q_vals[0], scale=1.0, background=0.001, **full_params)
-print(f"\nTotal intensity I(q): {I_q:.6e}")
-```
-
-### Resources
-
-- **Example Models**: See existing implementations in `src/form_factor/sphere/`, `src/form_factor/ellipsoid/`, etc.
-- **SasView Source**: https://github.com/SasView/sasmodels for reference implementations
-- **Build System**: Review `setup.py` for compilation flags and RPATH configuration
-- **Detailed Guide**: See `EXAMPLE_ADDING_NEW_MODEL.md` for more examples
-
-### Common Pitfalls
-
-1. **Missing Function Exports**: Ensure C functions are not `static` and have proper signatures
-2. **Parameter Mismatches**: `wrapper.py` parameter names must match `utils.py` dictionaries
-3. **Library Dependencies**: Structure factors may need `libsas_core` for numerical functions
-4. **RPATH Issues (Linux)**: `setup.py` automatically configures RPATH; don't modify manually
-5. **Windows DLL Loading**: Ensure `libsas_core.pyd` is in `PATH` or same directory
-
-The framework will work seamlessly with your new model once these steps are complete—all fitting, bootstrapping, and plotting functions automatically adapt to the parameter dictionaries you provide!
+See [EXAMPLE_ADDING_NEW_MODEL.md](EXAMPLE_ADDING_NEW_MODEL.md) for a fuller
+walkthrough and the existing `sphere`/`hardsphere` models for reference.
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
-**Note**: The core scattering models in `src/core_shell_cylinder/` are adapted from [SasView](https://www.sasview.org/) and are subject to SasView's BSD 3-Clause License. All C source files contain appropriate attribution headers.
+**Note**: The scattering model kernels in `src/scatterbootstrap/form_factors/` and
+`src/scatterbootstrap/structure_factors/`, and the shared numerical core in
+`src/scatterbootstrap/lib/`, are adapted from [SasView](https://www.sasview.org/)
+and are subject to SasView's BSD 3-Clause License. All C source files contain
+appropriate attribution headers.
 
 ## Citation
 
-If you use this software in your research, please cite:
+If you use this software in your research, please cite it using the metadata in
+[CITATION.cff](CITATION.cff), or:
 
 ```bibtex
-@software{echemes_bootstrapping,
-  title = {ECHEMES Bootstrapping: Advanced SAS Analysis Tools},
-  author = {Tobias Kaufmann},
-  year = {2025},
-  url = {https://github.com/TobiasMKaufmann/echemes-bootstrapping},
-  version = {0.3.0}
+@software{scatterbootstrap,
+  title   = {ScatterBootstrap: Small-angle scattering model fitting with
+             bootstrap-based uncertainty quantification},
+  author  = {Kaufmann, Tobias},
+  year    = {2025},
+  url     = {https://github.com/TobiasMKaufmann/ScatterBootstrap},
+  version = {0.4.0}
 }
 ```
 
@@ -1014,8 +839,11 @@ If you use this software in your research, please cite:
 
 - **Author**: Tobias Kaufmann
 - **Email**: tkaufman@student.ethz.ch
-- **Repository**: https://github.com/TobiasMKaufmann/echemes-bootstrapping
+- **Repository**: https://github.com/TobiasMKaufmann/ScatterBootstrap
 
 ---
 
-**Note**: This package is designed for scientific research in small-angle scattering analysis. The main analysis functionality is contained in `src/utils.py`, which provides comprehensive tools for bootstrapping, parameter fitting, and uncertainty analysis.
+**Note**: This package is designed for scientific research in small-angle scattering
+analysis. The main analysis API lives in `scatterbootstrap.core` (re-exported from
+the top-level `scatterbootstrap` package) and provides tools for computing
+scattering intensities, fitting, bootstrapping, and uncertainty analysis.

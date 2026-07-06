@@ -5,7 +5,7 @@
 # =============================================================================
 #
 # This script provides comprehensive file transfer, job submission, and monitoring
-# capabilities for the ECHEMES bootstrapping framework on ETH HPC systems
+# capabilities for the ScatterBootstrap framework on ETH HPC systems
 # (Euler/Leonhard). It handles bidirectional file synchronization, automated
 # job submission via SLURM, and remote monitoring of analysis progress.
 #
@@ -75,14 +75,14 @@
 # Edit the following variables before first use:
 #   CLUSTER_USER="your_nethz"          # Your NetHz username
 #   CLUSTER_HOST="euler.ethz.ch"       # or "leonhard.ethz.ch"
-#   REMOTE_DIR="echemes-bootstrapping"  # Remote directory name
+#   REMOTE_DIR="ScatterBootstrap"  # Remote directory name
 # =============================================================================
 
 # Configuration - EDIT THESE
 CLUSTER_USER=""
 CLUSTER_HOST="euler.ethz.ch"  # or "leonhard.ethz.ch"
 LOCAL_DIR="../"
-REMOTE_DIR="echemes-bootstrapping"
+REMOTE_DIR="ScatterBootstrap"
 
 case "$1" in
     "to")
@@ -240,7 +240,7 @@ case "$1" in
     "logs")
         echo "Showing recent job logs..."
         ssh ${CLUSTER_USER}@${CLUSTER_HOST} \
-            "cd ${REMOTE_DIR}/src/cluster && ls -la echemes_*.out echemes_*.err 2>/dev/null || echo 'No log files found yet'"
+            "cd ${REMOTE_DIR}/src/cluster && ls -la scatterbootstrap_*.out scatterbootstrap_*.err 2>/dev/null || echo 'No log files found yet'"
         echo ""
         echo "To view a specific log file, use: ./transfer.sh viewlog JOBID"
         ;;
@@ -251,13 +251,13 @@ case "$1" in
             exit 1
         fi
         JOBID="$2"
-        echo "=== OUTPUT LOG (echemes_${JOBID}.out) ==="
+        echo "=== OUTPUT LOG (scatterbootstrap_${JOBID}.out) ==="
         ssh ${CLUSTER_USER}@${CLUSTER_HOST} \
-            "cd ${REMOTE_DIR}/src/cluster && cat echemes_${JOBID}.out 2>/dev/null || echo 'Output log not found'"
+            "cd ${REMOTE_DIR}/src/cluster && cat scatterbootstrap_${JOBID}.out 2>/dev/null || echo 'Output log not found'"
         echo ""
-        echo "=== ERROR LOG (echemes_${JOBID}.err) ==="
+        echo "=== ERROR LOG (scatterbootstrap_${JOBID}.err) ==="
         ssh ${CLUSTER_USER}@${CLUSTER_HOST} \
-            "cd ${REMOTE_DIR}/src/cluster && cat echemes_${JOBID}.err 2>/dev/null || echo 'Error log not found'"
+            "cd ${REMOTE_DIR}/src/cluster && cat scatterbootstrap_${JOBID}.err 2>/dev/null || echo 'Error log not found'"
         ;;
     "check")
         echo "=== JOB STATUS ==="
@@ -265,7 +265,7 @@ case "$1" in
         echo ""
         echo "=== RECENT LOG FILES ==="
         ssh ${CLUSTER_USER}@${CLUSTER_HOST} \
-            "cd ${REMOTE_DIR}/src/cluster 2>/dev/null && ls -la echemes_*.out echemes_*.err 2>/dev/null || echo 'No log files found'"
+            "cd ${REMOTE_DIR}/src/cluster 2>/dev/null && ls -la scatterbootstrap_*.out scatterbootstrap_*.err 2>/dev/null || echo 'No log files found'"
         echo ""
         echo "=== BOOTSTRAP DATA FILES ==="
         ssh ${CLUSTER_USER}@${CLUSTER_HOST} \

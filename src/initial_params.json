@@ -2,33 +2,33 @@
     "dataset1":{
         "background":0.001,
         "core_sld":7.7,
-        "csalt":0.033096,
-        "dialec":78.3,
+        "saltconc":0.033096,
+        "dielectconst":78.3,
         "length":34.894622,
         "radius":13.759713,
         "radius_effective":24.4078379849,
         "scale":1,
         "shell_sld":10.989,
         "solvent_sld":9.4,
-        "temp":300.0,
+        "temperature":300.0,
         "thickness":6.401445,
-        "vol_frac":0.145572,
-        "zz":30.590918
+        "volfraction":0.145572,
+        "charge":30.590918
     },
     "dataset2":{
         "background":0.001,
         "core_sld":7.7,
-        "csalt":0.042297,
-        "dialec":78.3,
+        "saltconc":0.042297,
+        "dielectconst":78.3,
         "length":36.573633,
         "radius":14.292789,
         "radius_effective":24.7373418905,
         "scale":1,
         "shell_sld":10.989,
         "solvent_sld":9.4,
-        "temp":300.0,
+        "temperature":300.0,
         "thickness":6.064591,
-        "vol_frac":0.162218,
-        "zz":26.417886
+        "volfraction":0.162218,
+        "charge":26.417886
     }
 }

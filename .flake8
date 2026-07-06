@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 100
+# E203/W503: not PEP 8, conflict with black.
+# E741: "I" is the standard symbol for scattering intensity in this domain.
+extend-ignore = E203, W503, E741
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv,
+    .venv

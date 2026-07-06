@@ -131,22 +131,27 @@ Output Format
 
 Notes
 -----
-This module depends on utils_old.py for backward compatibility with previous
-analysis versions. Ensure plot_fit_data function is available for generating
-individual fit plots.
+This module uses scatterbootstrap.plot_fit_data to generate the individual
+fit plots, so the FORM_FACTOR_MODEL / STRUCTURE_FACTOR_MODEL below must match
+the models used to produce the HDF5 files being compared (see
+src/cluster/process_data.py).
 
 The module uses PIL (Pillow) for image manipulation to create side-by-side
-comparisons from individual plot files.
+comparisons from individual plot files. Install it with `pip install Pillow`.
 """
 
 import pandas as pd
 import numpy as np
 import os
-from old.utils_old import plot_fit_data
+from scatterbootstrap import plot_fit_data
 from PIL import Image
 
 # Folder to save results to:
 folder = "fit_results"
+
+# Models used to produce the HDF5 files being compared (see src/cluster/process_data.py)
+FORM_FACTOR_MODEL = "core_shell_cylinder"
+STRUCTURE_FACTOR_MODEL = "hayter_msa"
 
 def load_h5_datasets(base_folder):
     """
@@ -213,11 +218,12 @@ def determine_structure_factor(params_dict):
     Returns
     -------
     bool
-        True if all structure factor parameters (radius_effective, vol_frac, zz,
-        temp, csalt, dialec) are present and not None, False otherwise.
+        True if all structure factor parameters (radius_effective, volfraction,
+        charge, temperature, saltconc, dielectconst) are present and not None,
+        False otherwise.
     """
     # Structure factor parameters needed
-    sf_params = ['radius_effective', 'vol_frac', 'zz', 'temp', 'csalt', 'dialec']
+    sf_params = ['radius_effective', 'volfraction', 'charge', 'temperature', 'saltconc', 'dielectconst']
     
     # Check if all structure factor parameters are present and not None
     has_all_sf_params = all(param in params_dict and params_dict[param] is not None for param in sf_params)
@@ -287,9 +293,10 @@ def create_comparison_plots_from_h5(new_folder, old_folder, output_folder=None):
             try:
                 old_title = f"{dataset_name} - Old Fit"
                 plot_fit_data(q_data, I_data, params_dict,
+                            form_factor_model=FORM_FACTOR_MODEL,
+                            structure_factor_model=STRUCTURE_FACTOR_MODEL if structure_factor else None,
                             title=old_title,
-                            folder=temp_folder,
-                            structure_factor=structure_factor)
+                            folder=temp_folder)
                 
                 expected_old_filename = f"{old_title.replace(' ', '_').lower()}.png"
                 old_plot_path = os.path.join(temp_folder, expected_old_filename)
@@ -308,9 +315,10 @@ def create_comparison_plots_from_h5(new_folder, old_folder, output_folder=None):
             try:
                 new_title = f"{dataset_name} - New Fit"
                 plot_fit_data(q_data, I_data, params_dict,
+                            form_factor_model=FORM_FACTOR_MODEL,
+                            structure_factor_model=STRUCTURE_FACTOR_MODEL if structure_factor else None,
                             title=new_title,
-                            folder=temp_folder,
-                            structure_factor=structure_factor)
+                            folder=temp_folder)
                 
                 expected_new_filename = f"{new_title.replace(' ', '_').lower()}.png"
                 new_plot_path = os.path.join(temp_folder, expected_new_filename)

@@ -3,7 +3,7 @@
 High-Performance Cluster Bootstrap Analysis
 ============================================
 
-Main processing script for the ECHEMES cluster computing framework, designed for
+Main processing script for the ScatterBootstrap cluster computing framework, designed for
 high-throughput bootstrap analysis on ETH HPC systems (Euler/Leonhard) using SLURM
 job scheduling. Provides a streamlined, plotting-free version of the core analysis
 optimized for batch processing of multiple SAS datasets.
@@ -20,7 +20,6 @@ This script is part of a complete cluster computing workflow:
     - transfer.sh - Bidirectional file transfer and job management
 
 **Configuration:**
-    - content_verification.py - Quality assurance for analysis results
     - requirements_cluster.txt - Minimal dependency specification
     - README.md - Complete cluster usage documentation
 
@@ -179,41 +178,35 @@ HPC clusters with similar architecture:
     - Adjust resource requests (memory, CPU, time) for your queue limits
     - Verify C extension compilation with your cluster's toolchain
 
-Performance Disclaimer
-----------------------
+Performance
+-----------
 
-⚠️  **IMPORTANT:** This implementation is NOT yet optimized for high-performance computing.
+The bootstrap refits are run **in parallel** across worker processes (see the
+``N_JOBS`` configuration variable below and the ``n_jobs`` argument of
+``residuals_bootstrap``). By default ``N_JOBS`` reads SLURM's
+``$SLURM_CPUS_PER_TASK``, so the analysis uses exactly the cores you allocate in
+``submit_job.sh`` (``--cpus-per-task``); locally it falls back to all available
+cores. This gives a near-linear speedup with the number of cores.
 
-**Current Limitations:**
-    - Sequential processing of datasets (no parallelization)
-    - Single-threaded bootstrap iterations
-    - No MPI or distributed computing support
-    - Memory usage not optimized for large-scale analyses
-    - C extensions compiled with basic optimization flags
+**Current scope:**
+    - Datasets are still processed one after another (the parallelism is within
+      a dataset's bootstrap, which is where the cost is).
+    - No multi-node/MPI distribution (single node, many cores).
 
-**Performance Improvements Needed:**
-    - Parallel processing of multiple datasets using MPI or multiprocessing
-    - Vectorized bootstrap iterations with GPU acceleration
-    - Memory-efficient streaming for large datasets
-    - Advanced C compiler optimizations (-O3, -march=native)
-    - Distributed computing across multiple nodes
-    - Asynchronous I/O for HDF5 operations
+**Possible future improvements:**
+    - Distributing whole datasets across nodes (e.g. a SLURM job array).
+    - Advanced C compiler optimizations (-O3, -march=native).
+    - Asynchronous I/O for HDF5 operations.
 
-**Current Status:**
-    This framework provides functional cluster deployment but performance
-    optimizations are planned for future releases. For production runs with
-    thousands of bootstrap iterations or dozens of datasets, expect extended
-    execution times. Consider starting with smaller iteration counts for testing.
+To scale across many datasets, submit one job per dataset (a SLURM array) and
+let each job parallelize its own bootstrap over its allocated cores.
 
 Notes
 -----
 No virtual environment needed - using system Python with --user packages.
 """
 
-import sys
 import os
-sys.path.append('..')
-sys.path.append('../core_shell_cylinder')
 
 # No virtual environment needed - using system Python with --user packages
 
@@ -221,17 +214,23 @@ import json
 import glob
 import pandas as pd
 import numpy as np
-try:
-    from utils import fit_data, residuals_bootstrap, compute_confidence_intervals
-    print("Successfully imported utils functions")
-except ImportError as e:
-    print(f"Error importing utils: {e}")
-    print("This might be due to missing dependencies or C extension issues")
-    sys.exit(1)
+
+from scatterbootstrap import fit_data, residuals_bootstrap, compute_confidence_intervals
 
 # ============================================================================
 # GLOBAL CONFIGURATION - MODIFY THESE TO MATCH YOUR DATA STRUCTURE AND ANALYSIS
 # ============================================================================
+
+# -----------------------------------------------------------------------------
+# MODEL SELECTION
+# -----------------------------------------------------------------------------
+
+# Form factor and structure factor models, by name (see
+# scatterbootstrap.list_form_factor_models() / list_structure_factor_models()
+# for all available options). These determine which parameters
+# initial_params.json, FIT_PARAMS_*, and PARAMETER_BOUNDS_* must provide.
+FORM_FACTOR_MODEL = "core_shell_cylinder"
+STRUCTURE_FACTOR_MODEL = "hayter_msa"
 
 # -----------------------------------------------------------------------------
 # DATA LOCATION CONFIGURATION
@@ -256,7 +255,7 @@ REL_FILE_IDENTIFIER = "IDENTIFIER"  # Change this to your file identifier
 # FITTING CONFIGURATION - ADJUST FOR YOUR SPECIFIC ANALYSIS
 # -----------------------------------------------------------------------------
 
-# NOTE: Configure which model to use in utils.py prior to running this script!
+# NOTE: Configure FORM_FACTOR_MODEL / STRUCTURE_FACTOR_MODEL above before running this script!
 
 # ⚠️  IMPORTANT: Review and modify these settings based on your data!
 #
@@ -275,11 +274,11 @@ FIT_PARAMS_WITH_SF = {
     "thickness": True,
     "length": True,
     "radius_effective": False,
-    "vol_frac": True,
-    "zz": True,
-    "temp": False,
-    "csalt": True,
-    "dialec": False
+    "volfraction": True,
+    "charge": True,
+    "temperature": False,
+    "saltconc": True,
+    "dielectconst": False
 }
 
 # Parameters to fit without structure factor (form factor only)
@@ -307,11 +306,11 @@ PARAMETER_BOUNDS_WITH_SF = {
     "length": (25, 50),           # ⚠️  Adjust for your cylinder length!
     # Structure factor parameters (if fitted):
     "radius_effective": (0, 500),
-    "vol_frac": (0.0, 1),
-    "zz": (0, 100),
-    "temp": (273, 373),
-    "csalt": (0, 0.5),
-    "dialec": (1, np.inf)
+    "volfraction": (0.0, 1),
+    "charge": (0, 100),
+    "temperature": (273, 373),
+    "saltconc": (0, 0.5),
+    "dielectconst": (1, np.inf)
 }
 
 # Parameter bounds for WITHOUT structure factor (typically used with trf/dogbox)
@@ -353,6 +352,12 @@ FITTING_METHOD_NO_SF = "trf"       # ⚠️  Method without structure factor (su
 
 # Number of bootstrap iterations (higher = better statistics, longer runtime)
 N_BOOTSTRAP_ITERATIONS = 5000      # ⚠️  Adjust based on desired precision vs compute time
+
+# Number of parallel worker processes for the bootstrap refits. The bootstrap
+# iterations are independent, so this gives a near-linear speedup. On SLURM this
+# automatically uses the cores you allocated via --cpus-per-task; locally it
+# falls back to "-1" (all available cores). Set to 1 to force serial execution.
+N_JOBS = int(os.environ.get("SLURM_CPUS_PER_TASK", 0)) or -1
 
 # ============================================================================
 
@@ -438,19 +443,19 @@ def main():
                 # To change fitting method or bounds, modify the global variables:
                 # - FITTING_METHOD_WITH_SF and PARAMETER_BOUNDS_WITH_SF
                 # - FITTING_METHOD_NO_SF and PARAMETER_BOUNDS_NO_SF
+                sf_model = STRUCTURE_FACTOR_MODEL if structure_factor else None
+
                 print(f"  Initial fit...")
                 if structure_factor:
                     print(f"  Using structure factor (method: {FITTING_METHOD_WITH_SF})")
-                    first_fit, covariance, names = fit_data(file["q"], file["I"], 
-                                                            initial_params=d, fit_params=fit_params, 
-                                                            method=FITTING_METHOD_WITH_SF, 
-                                                            structure_factor=structure_factor, bounds=bounds_with_sf)
-                elif not structure_factor:
+                    first_fit, covariance, names = fit_data(file["q"], file["I"], FORM_FACTOR_MODEL, sf_model,
+                                                            initial_params=d, fit_params=fit_params,
+                                                            method=FITTING_METHOD_WITH_SF, bounds=bounds_with_sf)
+                else:
                     print(f"  Not using structure factor (method: {FITTING_METHOD_NO_SF})")
-                    first_fit, covariance, names = fit_data(file["q"], file["I"], 
-                                                            initial_params=d, fit_params=fit_params, 
-                                                            method=FITTING_METHOD_NO_SF, 
-                                                            structure_factor=structure_factor, bounds=bounds_no_sf)
+                    first_fit, covariance, names = fit_data(file["q"], file["I"], FORM_FACTOR_MODEL, sf_model,
+                                                            initial_params=d, fit_params=fit_params,
+                                                            method=FITTING_METHOD_NO_SF, bounds=bounds_no_sf)
                 # new_initial_params = {name: val for name, val in zip(names, first_fit)}
                 # new_initial_params.update({name: val for name, val in d.items if not fit_params[name]})
                 
@@ -480,22 +485,25 @@ def main():
                 # ⚠️  BOOTSTRAP CONFIGURATION:
                 # Number of iterations: N_BOOTSTRAP_ITERATIONS (currently: {N_BOOTSTRAP_ITERATIONS})
                 # Fitting methods and bounds same as initial fit (see global variables)
-                print(f"  Bootstrap analysis ({N_BOOTSTRAP_ITERATIONS} iterations)...")
+                print(f"  Bootstrap analysis ({N_BOOTSTRAP_ITERATIONS} iterations, "
+                      f"n_jobs={N_JOBS})...")
                 if structure_factor:
                     print(f"  Using structure factor (method: {FITTING_METHOD_WITH_SF})")
-                    bootstrap_results = residuals_bootstrap(file["q"], file["I"], new_initial_params, fit_params, 
-                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store, 
-                                                            method=FITTING_METHOD_WITH_SF, 
-                                                            structure_factor=structure_factor, bounds=bounds_with_sf)
-                elif not structure_factor:
+                    bootstrap_results = residuals_bootstrap(file["q"], file["I"], FORM_FACTOR_MODEL, sf_model,
+                                                            all_params=new_initial_params, fit_params=fit_params,
+                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store,
+                                                            method=FITTING_METHOD_WITH_SF, bounds=bounds_with_sf,
+                                                            n_jobs=N_JOBS)
+                else:
                     print(f"  Not using structure factor (method: {FITTING_METHOD_NO_SF})")
-                    bootstrap_results = residuals_bootstrap(file["q"], file["I"], new_initial_params, fit_params, 
-                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store, 
-                                                            method=FITTING_METHOD_NO_SF, 
-                                                            structure_factor=structure_factor, bounds=bounds_no_sf)
+                    bootstrap_results = residuals_bootstrap(file["q"], file["I"], FORM_FACTOR_MODEL, sf_model,
+                                                            all_params=new_initial_params, fit_params=fit_params,
+                                                            n_iterations=N_BOOTSTRAP_ITERATIONS, store=store,
+                                                            method=FITTING_METHOD_NO_SF, bounds=bounds_no_sf,
+                                                            n_jobs=N_JOBS)
 
                 print(f"  Computing confidence intervals...")
-                confidence_intervals = compute_confidence_intervals(bootstrap_results)
+                confidence_intervals = compute_confidence_intervals(bootstrap_results, confidence_level=0.95)
                 store.put('confidence_intervals', pd.DataFrame(confidence_intervals).T)
                 
             print(f"  Completed {which}")
