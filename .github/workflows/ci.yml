@@ -16,6 +16,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.11", "3.12"]
+        exclude:
+          # PyTables 3.9.2 is the last release that supports Python 3.9 and it
+          # ships no macOS arm64 wheel. macos-latest runs on Apple Silicon, so
+          # pip falls back to a source build that fails without HDF5 headers.
+          - os: macos-latest
+            python-version: "3.9"
 
     steps:
       - uses: actions/checkout@v4
